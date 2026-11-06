@@ -7,7 +7,15 @@
 // These values are safe to publish on GitHub: a Firebase web config only says
 // which project to talk to. Access is controlled by firestore.rules.
 
-window.FIREBASE_CONFIG = null;
+const firebaseConfig = {
+  apiKey: "AIzaSyC-bVB6DvjKbJ2R5eiauXscIwiOniJFR4M",
+  authDomain: "minigolfgame-e7ea1.firebaseapp.com",
+  projectId: "minigolfgame-e7ea1",
+  storageBucket: "minigolfgame-e7ea1.firebasestorage.app",
+  messagingSenderId: "1083025541017",
+  appId: "1:1083025541017:web:ea6fc3c6b16494e1d9b508",
+  measurementId: "G-8N387BM15E"
+};
 
 /* Example. Replace null above with your own values:
 
