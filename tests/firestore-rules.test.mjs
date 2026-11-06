@@ -1,0 +1,49 @@
+import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
+import { readFileSync } from "fs";
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
+const FV = firebase.firestore.FieldValue;
+
+const env = await initializeTestEnvironment({ projectId:"demo-tinytees", firestore:{ rules:readFileSync(new URL("../firestore.rules", import.meta.url), "utf8"), host:"127.0.0.1", port:8089 } });
+const alice = env.authenticatedContext("alice").firestore();
+const bob = env.authenticatedContext("bob").firestore();
+const anon = env.unauthenticatedContext().firestore();
+const base = (uid) => ({ name:"Test", nameLower:"test", emoji:"⛳", author:"Alice", uid, holes:2, theme:{fair:"#4caf50"},
+  data:JSON.stringify({holes:[]}), likes:0, plays:0, createdAt:FV.serverTimestamp(), updatedAt:FV.serverTimestamp() });
+let pass = 0, fail = 0;
+async function t(name, p){ try { await p; pass++; console.log("  ✓", name); } catch(e){ fail++; console.log("  ✗", name, "-", e.message.split("\n")[0]); } }
+
+console.log("create");
+await t("alice creates her map", assertSucceeds(alice.collection("maps").doc("m1").set(base("alice"))));
+await t("anonymous (signed-out) can't create", assertFails(anon.collection("maps").doc("m2").set(base("alice"))));
+await t("bob can't publish as alice", assertFails(bob.collection("maps").doc("m3").set(base("alice"))));
+await t("can't start with fake likes", assertFails(alice.collection("maps").doc("m4").set({ ...base("alice"), likes:999 })));
+await t("can't add unknown fields", assertFails(alice.collection("maps").doc("m5").set({ ...base("alice"), admin:true })));
+await t("name too long rejected", assertFails(alice.collection("maps").doc("m6").set({ ...base("alice"), name:"x".repeat(41) })));
+await t("too many holes rejected", assertFails(alice.collection("maps").doc("m7").set({ ...base("alice"), holes:20 })));
+await t("fake createdAt rejected", assertFails(alice.collection("maps").doc("m8").set({ ...base("alice"), createdAt:new Date(2000,1,1) })));
+console.log("read");
+await t("anyone can read", assertSucceeds(anon.collection("maps").doc("m1").get()));
+await t("anyone can list", assertSucceeds(anon.collection("maps").orderBy("likes","desc").limit(10).get()));
+console.log("update");
+await t("alice edits her map", assertSucceeds(alice.collection("maps").doc("m1").update({ name:"Renamed", updatedAt:FV.serverTimestamp() })));
+await t("bob can't edit alice's map", assertFails(bob.collection("maps").doc("m1").update({ name:"Hacked" })));
+await t("alice can't bump her own likes", assertFails(alice.collection("maps").doc("m1").update({ likes:50 })));
+await t("alice can't give away ownership", assertFails(alice.collection("maps").doc("m1").update({ uid:"bob" })));
+await t("bob adds one play", assertSucceeds(bob.collection("maps").doc("m1").update({ plays:FV.increment(1) })));
+await t("bob can't add 10 plays", assertFails(bob.collection("maps").doc("m1").update({ plays:FV.increment(10) })));
+await t("bob can't sneak a rename with a play", assertFails(bob.collection("maps").doc("m1").update({ plays:FV.increment(1), name:"x" })));
+console.log("likes");
+const like = (db, uid) => { const b = db.batch(); b.set(db.collection("maps").doc("m1").collection("likes").doc(uid), { at:FV.serverTimestamp() }); b.update(db.collection("maps").doc("m1"), { likes:FV.increment(1) }); return b.commit(); };
+await t("bob likes once", assertSucceeds(like(bob, "bob")));
+await t("bob can't like twice", assertFails(like(bob, "bob")));
+await t("+1 like without a like marker fails", assertFails(env.authenticatedContext("carol").firestore().collection("maps").doc("m1").update({ likes:FV.increment(1) })));
+await t("carol can't fake bob's like marker", assertFails(env.authenticatedContext("carol").firestore().collection("maps").doc("m1").collection("likes").doc("dave").set({ at:1 })));
+const snap = await alice.collection("maps").doc("m1").get();
+await t("counters are right (likes 1, plays 1)", snap.data().likes === 1 && snap.data().plays === 1 ? Promise.resolve() : Promise.reject(new Error(JSON.stringify(snap.data()))));
+console.log("delete");
+await t("bob can't delete alice's map", assertFails(bob.collection("maps").doc("m1").delete()));
+await t("alice deletes her map", assertSucceeds(alice.collection("maps").doc("m1").delete()));
+console.log(`\n${pass} passed, ${fail} failed`);
+await env.cleanup();
+process.exit(fail ? 1 : 0);

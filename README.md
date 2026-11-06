@@ -1,6 +1,6 @@
 # ⛳ Tiny Tees — Mini Golf
 
-A mini golf game with 30 holes across 3 worlds that runs in the browser. It's a single HTML file with no build step, and it works with a mouse or a touchscreen.
+A mini golf game with 30 holes across 3 worlds, plus a map editor for building your own courses. It runs in the browser with no build step, and it works with a mouse or a touchscreen.
 
 **Play it:** https://jupixels.github.io/minigolf/
 
@@ -22,6 +22,7 @@ A world unlocks when you finish its predecessor's full course, in solo or multip
 - **Gems 💎** hidden on every hole. Spend them in the **Ball Shop** on new balls with special trails (fire, bubbles, sparkles, rainbow)
 - **Practice mode** to replay any hole in any world you have unlocked, with your best score for each hole saved
 - In every world you can play the full course or just the front or back half. Your best solo round on each is saved
+- **🛠️ Custom maps**: a full map editor, share links, and an optional public **Community** gallery (see below)
 - Hole intro banners, confetti, screen shake and synthesized sound effects (press **M** to mute)
 
 ## How to play
@@ -44,15 +45,81 @@ Drag back from anywhere on the course and let go to putt. The farther you pull, 
 
 Each hole has a 10-stroke limit. Press **Esc** or **☰** to pause.
 
+## 🛠️ Custom maps
+
+Open **🛠️ Custom maps** from the main menu.
+
+### My maps
+- **＋ New map** opens the editor. Maps save automatically in your browser.
+- **▶ Play** a map solo or with 2–4 players. **✏️ Edit** reopens it in the editor.
+- **🔗 Share** makes a link with the whole map packed into it. Anyone who opens the link can play the map or save a copy, and no server is needed.
+- **📥 Import code** loads a map from a link or code someone sent you.
+- **🌐 Publish** puts the map in the Community gallery, if Community maps are turned on. Publishing again updates it.
+
+### The editor
+- **18 tools:** tee, hole, walls, sand, water, ice, conveyor belts, breakable crystals, bumpers, boost pads, portal pairs, hills, dips/gravity wells, moving blocks, windmills, gems and an eraser.
+- **Placing things:** click to place. Drag to draw walls and zones. Use 👆 to select and move things, and pull the yellow ■ handle to resize them.
+- **Settings panel:** shows the exact numbers for whatever is selected (position, size, direction, strength, speed, number of arms).
+- **Holes:** each course has up to 9 holes. Each hole has its own name, par, hint and size, from 400×280 up to 1200×760. There are also presets: Small, Medium, Large, Huge and Tall.
+- **🎨 Theme:** 8 color presets (Greenfield, Canyon, Neon, Snowy, Candy, Volcano, Lagoon, Midnight) or your own colors for the fairway, background, rails and walls. You can also pick a hazard style (water, quicksand, neon void or lava) and a course icon.
+- **▶ Test** plays the hole you're editing straight away. One click takes you back to the editor.
+- **Safety checks:** warnings appear if the tee or hole is inside a wall or hazard.
+- **Shortcuts:** `Ctrl+Z`/`Ctrl+Y` undo/redo · `Ctrl+C`/`V`/`D` copy/paste/duplicate · `Del` delete · `R` rotate · arrow keys nudge · `G` toggle snap · hold `Alt` to place freely · `T` test.
+
+Gems in custom maps sparkle when you collect them but don't add to your 💎 wallet, so nobody can farm gems with a custom map.
+
+### Community maps
+The Community tab lists maps that players have published. You can sort by 🆕 New, ❤️ Top or 🔥 Most played, search, like (once per player), play, and **Remix** (copy a map into My maps to edit). Publishers can remove their own maps.
+
+Community maps use a free Google Firebase project. Until one is connected, the tab explains that it isn't set up yet, and everything else (including share links) works normally.
+
+## Turning on Community maps (Firebase)
+
+You only need to do this once. It takes about 10 minutes and uses Firebase's free Spark plan.
+
+1. **Create a project.** Go to the [Firebase console](https://console.firebase.google.com/), click **Create a project**, and give it a name (for example `tiny-tees`). You can turn Google Analytics off.
+2. **Turn on anonymous sign-in.** Go to **Build → Authentication → Get started → Sign-in method**, then enable **Anonymous**. Players never see a login: each browser gets an invisible ID, so a player can update or remove only the maps they published.
+3. **Create the database.** Go to **Build → Firestore Database → Create database**, pick a location near your players, and start in **production mode**.
+4. **Add the security rules.** In Firestore, open the **Rules** tab, replace everything with the contents of [`firestore.rules`](firestore.rules), and click **Publish**.
+5. **Register the web app.** Go to **Project settings ⚙️ → General → Your apps**, click the **Web `</>`** icon, give the app a nickname, and click **Register app** (you don't need Firebase Hosting). Firebase then shows a `firebaseConfig` object.
+6. **Paste the config.** Open [`firebase-config.js`](firebase-config.js), replace `window.FIREBASE_CONFIG = null;` with your config, then commit and push:
+   ```js
+   window.FIREBASE_CONFIG = {
+     apiKey: "…", authDomain: "…", projectId: "…",
+     storageBucket: "…", messagingSenderId: "…", appId: "…",
+   };
+   ```
+   It's normal for these values to be public. Access is controlled by the security rules, not by keeping the config secret.
+7. **Authorize your domain.** Go to **Authentication → Settings → Authorized domains** and add `jupixels.github.io`.
+
+Once GitHub Pages redeploys, the Community tab is live.
+
+**What the security rules allow** (the tests in [`tests/`](tests) check all of these against the Firestore emulator):
+- Anyone can browse and play published maps.
+- A player can only publish under their own ID. Names, sizes and hole counts are validated, and a new map always starts at 0 likes and 0 plays.
+- Only the publisher can edit or delete a map.
+- Anyone can add exactly +1 play, or +1 like once per player. Nobody can inflate the counters.
+
+## Running locally
+
+Opening `index.html` directly works for the main game. Custom maps and Community need the files served over HTTP, because `community.js` is a module:
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+To try the Community tab without Firebase, open `http://localhost:8000/?community=local`. That uses a fake backend that stores everything in your browser.
+
 ## GitHub Pages setup
 
 1. Go to **Settings → Pages** in this repo.
 2. Under **Build and deployment**, set **Source** to **Deploy from a branch**, pick the `main` branch and the `/ (root)` folder, then click **Save**.
 3. After a minute or so, the game will be live at the link above.
 
-## Making your own holes
+## Adding built-in holes (code)
 
-Each world's holes are in its own array near the top of the `<script>` in `index.html`: `GREEN_LEVELS`, `DESERT_LEVELS` and `COSMIC_LEVELS`. The `WORLDS` list ties each array to its name and theme. The playfield is 800×500, and the playable area runs from (40, 40) to (760, 460).
+To add holes to the built-in worlds, edit the code. Each world's holes are in its own array near the top of the `<script>` in `index.html`: `GREEN_LEVELS`, `DESERT_LEVELS` and `COSMIC_LEVELS`. The `WORLDS` list ties each array to its name and theme. Built-in holes are 720×420, and the playable area runs from (40, 40) to (760, 460). Add `size:[w,h]` to a hole to change its size. Custom-map holes use exactly the same format.
 
 ```js
 { name:"My Hole", par:3, tee:[110,250], hole:[690,250],

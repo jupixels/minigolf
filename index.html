@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="firebase-config.js"></script>
+<script type="module" src="community.js"></script>
 <style>
   :root {
     --ink:#f6f3e8; --dim:rgba(246,243,232,.65); --accent:#ffd34e; --accent-d:#c3920f;
@@ -110,6 +112,77 @@
   @keyframes glow { from { box-shadow:0 0 0 2px var(--accent); } to { box-shadow:0 0 22px 4px var(--accent); } }
   @media (max-width:560px){ .worlds { grid-template-columns:1fr; } .world small { display:none; } }
   .hint { font-size:13px; color:var(--dim); margin-top:12px; }
+
+  /* ---------- Editor ---------- */
+  #edTop, #edTools, #edPanel { display:none; }
+  body.editing #hud { display:none; }
+  body.editing #edTop { display:flex; }
+  body.editing #edTools { display:grid; }
+  body.editing #edPanel { display:block; }
+  #stage { display:flex; gap:8px; align-items:flex-start; justify-content:center; max-width:100%; }
+  #edTop { align-items:center; gap:6px; flex-wrap:wrap; width:100%; background:rgba(0,0,0,.32); border:1px solid var(--line); border-radius:16px; padding:6px 8px; }
+  #edTop button { padding:7px 12px; font-size:14px; }
+  #edTop button.icon { padding:0; }
+  #edName { font:inherit; font-weight:600; background:rgba(255,255,255,.1); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:7px 10px; width:170px; }
+  #edHoles { display:flex; gap:4px; flex-wrap:wrap; }
+  #edHoles button { padding:6px 11px; border-radius:10px; background:rgba(255,255,255,.1); color:var(--ink); box-shadow:none; }
+  #edHoles button.on { background:var(--accent); color:#2a2100; }
+  #edSnap.on { background:rgba(255,211,78,.25); box-shadow:inset 0 0 0 2px var(--accent); }
+  #edSaved { font-size:12px; min-width:58px; }
+  .spacer { flex:1; }
+  body.editing #app { justify-content:flex-start; }
+  body.editing #edTools { max-height:calc(100vh - 84px); overflow-y:auto; }
+  body.editing #edPanel { max-height:calc(100vh - 84px); }
+  @media (max-height: 480px){ #edTools button { width:38px; height:38px; font-size:17px; } #edTools { grid-template-columns:repeat(2, 38px) !important; } #edTop { padding:4px 6px; } #edTop button { padding:5px 9px; } }
+  #edTools { grid-template-columns:repeat(2, 44px); gap:5px; align-content:start; background:rgba(0,0,0,.3); border:1px solid var(--line); border-radius:14px; padding:6px; }
+  #edTools button { width:44px; height:44px; padding:0; font-size:20px; border-radius:11px; background:rgba(255,255,255,.08); box-shadow:none; }
+  #edTools button:hover { background:rgba(255,255,255,.18); }
+  #edTools button.on { background:var(--accent); box-shadow:0 0 0 2px #fff inset; }
+  #edPanel { width:260px; max-height:calc(100vh - 90px); overflow:auto; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line); border-radius:14px; padding:12px; font-size:14px; }
+  #edPanel h4 { margin:0 0 8px; font-size:16px; }
+  .fld { display:grid; grid-template-columns:62px 1fr 56px; gap:6px; align-items:center; margin:5px 0; }
+  .fld2 { display:grid; grid-template-columns:62px 1fr; gap:6px; align-items:center; margin:5px 0; }
+  .fld span, .fld2 span { font-size:13px; color:var(--dim); }
+  #edPanel input[type=number], #edPanel input[type=text] { font:inherit; font-size:13px; background:rgba(0,0,0,.3); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:4px 6px; width:100%; min-width:0; }
+  input[type=range] { accent-color:var(--accent); width:100%; min-width:0; }
+  .sub { font-size:12px; color:var(--dim); margin:10px 0 4px; letter-spacing:.5px; }
+  .dirs { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+  .dirs button, .chips button { padding:5px 0; font-size:15px; border-radius:8px; background:rgba(255,255,255,.1); color:var(--ink); box-shadow:none; }
+  .dirs button.on, .chips button.on { background:var(--accent); color:#2a2100; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; } .chips button { padding:4px 8px; font-size:12px; }
+  .pbtns { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .pbtns button { padding:6px 10px; font-size:13px; border-radius:10px; }
+  .warn { background:rgba(255,120,80,.15); border:1px solid rgba(255,120,80,.45); border-radius:10px; padding:6px 8px; margin:6px 0; font-size:13px; }
+  .keys { font-size:12px; color:var(--dim); line-height:1.7; margin-top:12px; }
+  .keys summary { cursor:pointer; color:var(--ink); font-weight:600; }
+  .keys kbd { background:rgba(255,255,255,.14); border-radius:5px; padding:0 5px; font-family:inherit; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%, 20px); background:rgba(10,20,15,.92); color:#fff; padding:10px 16px; border-radius:12px; opacity:0; transition:.25s; pointer-events:none; z-index:20; font-weight:500; border:1px solid var(--line); max-width:90vw; text-align:center; }
+  #toast.show { opacity:1; transform:translate(-50%, 0); }
+  /* ---------- Custom maps hub ---------- */
+  .card.wide { min-width:min(700px, 94vw); }
+  .hubbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; margin:8px 0; }
+  .maplist { display:flex; flex-direction:column; gap:8px; text-align:left; max-height:44vh; overflow:auto; padding:2px; margin-top:4px; }
+  .maprow { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.06); border-radius:14px; padding:8px 10px; }
+  .mswatch { width:44px; height:44px; border-radius:12px; display:grid; place-items:center; font-size:22px; flex:none; box-shadow:inset 0 0 0 2px rgba(255,255,255,.25); }
+  .minfo { flex:1; min-width:0; } .minfo b { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .minfo small { color:var(--dim); }
+  .mbtns { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+  .mbtns button { padding:7px 10px; font-size:13px; border-radius:10px; }
+  .empty { padding:22px 10px; text-align:center; color:var(--ink); background:rgba(255,255,255,.04); border-radius:14px; line-height:1.6; }
+  .textin { font:inherit; background:rgba(0,0,0,.3); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .presets { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:4px 0; }
+  .preset { padding:16px 4px 6px; border-radius:12px; color:#fff; font-size:12px; box-shadow:0 3px 0 rgba(0,0,0,.3); text-shadow:0 1px 3px #000; }
+  .colors { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; text-align:left; max-width:340px; margin:0 auto; }
+  .colors label { display:flex; align-items:center; gap:8px; }
+  input[type=color] { width:40px; height:32px; border:none; background:none; padding:0; cursor:pointer; }
+  .emojis { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; max-width:420px; margin:0 auto; }
+  .emojis button { padding:4px 7px; font-size:20px; background:rgba(255,255,255,.08); box-shadow:none; border-radius:9px; }
+  .emojis button.on { background:var(--accent); }
+  @media (max-width: 760px){
+    #stage { flex-direction:column; align-items:center; }
+    #edTools { grid-template-columns:none; grid-auto-flow:column; overflow-x:auto; max-width:calc(100vw - 16px); }
+    #edPanel { position:fixed; left:8px; right:8px; bottom:8px; width:auto; max-height:36vh; z-index:3; }
+    #edName { width:120px; }
+  }
 </style>
 </head>
 <body>
@@ -127,11 +200,30 @@
       <button class="ghost icon" id="btnPause" title="Menu (Esc)">☰</button>
     </div>
   </div>
-  <div id="wrap">
-    <canvas id="c"></canvas>
-    <div id="overlay" class="hidden"></div>
+  <div id="edTop">
+    <button class="ghost" data-ed="exit" title="Back to My maps">← Maps</button>
+    <button class="ghost icon" data-ed="emoji" id="edEmoji" title="Course icon">⛳</button>
+    <input id="edName" maxlength="40" aria-label="Course name">
+    <div id="edHoles"></div>
+    <button class="ghost" data-ed="theme" title="Colors & theme">🎨 Theme</button>
+    <div class="spacer"></div>
+    <button class="ghost icon" data-ed="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button class="ghost icon" data-ed="redo" title="Redo (Ctrl+Y)">↷</button>
+    <button class="ghost" data-ed="snap" id="edSnap" title="Snap to grid (G)">▦ Snap</button>
+    <button class="ghost" data-ed="share" title="Share link">🔗 Share</button>
+    <button data-ed="test" title="Play this hole (T)">▶ Test</button>
+    <span id="edSaved" class="muted"></span>
+  </div>
+  <div id="stage">
+    <div id="edTools"></div>
+    <div id="wrap">
+      <canvas id="c"></canvas>
+      <div id="overlay" class="hidden"></div>
+    </div>
+    <div id="edPanel"></div>
   </div>
 </div>
+<div id="toast"></div>
 
 <script>
 (() => {
@@ -140,8 +232,17 @@
 // =====================================================================
 //  Constants
 // =====================================================================
-const W = 800, H = 500, DT = 1/60;
-const MIN_X = 40, MIN_Y = 40, MAX_X = 760, MAX_Y = 460;
+const DT = 1/60;
+// The playfield size can change per hole (custom maps). Built-in holes use 720x420.
+let W = 800, H = 500;
+let MIN_X = 40, MIN_Y = 40, MAX_X = 760, MAX_Y = 460;
+const DEFAULT_SIZE = [720, 420], SIZE_MIN = [400, 280], SIZE_MAX = [1200, 760];
+function applySize(size){
+  const w = size ? size[0] : DEFAULT_SIZE[0], h = size ? size[1] : DEFAULT_SIZE[1];
+  if (W === w + 80 && H === h + 80) return;
+  W = w + 80; H = h + 80; MAX_X = 40 + w; MAX_Y = 40 + h;
+  if (typeof resize === "function") resize();
+}
 const BALL_R = 7, HOLE_R = 11;
 const MAX_DRAG = 160, MAX_SPEED = 17;
 const SUBSTEPS = 8, WALL_E = 0.72, BUMPER_KICK = 1.35;
@@ -293,30 +394,62 @@ const WORLDS = [
 ];
 
 const THEMES = {
-  green: {
+  green: { style:"green",
     page:"radial-gradient(ellipse at 50% -10%, #23573c 0%, #0f2b1e 45%, #081710 100%)",
     rough:"#1c4a2f", roughDot:"rgba(255,255,255,.035)", railOuter:"#5c3a1c", rail:"#8b5a2b",
     fairA:"#4caf50", fairB:"#55b859", wallA:"#9a6533", wallB:"#7a4c22",
   },
-  desert: {
+  desert: { style:"desert",
     page:"radial-gradient(ellipse at 50% -10%, #7a4a2a 0%, #3d2416 45%, #1f120a 100%)",
     rough:"#c48a52", roughDot:"rgba(120,60,20,.18)", railOuter:"#6e3518", rail:"#a0522d",
     fairA:"#8fae4f", fairB:"#98b757", wallA:"#c0693a", wallB:"#8e4423",
   },
-  cosmic: {
+  cosmic: { style:"cosmic",
     page:"radial-gradient(ellipse at 50% -10%, #2a1d5c 0%, #120d33 45%, #06051a 100%)",
     rough:"#07061a", roughDot:"rgba(255,255,255,.6)", railOuter:"#0d0b2a", rail:"#2de2e6",
     fairA:"#1b1f4a", fairB:"#1f2454", wallA:"#3a1a5c", wallB:"#2a1240",
   },
 };
 
+// ---------- Custom themes ----------
+const HAZARD_STYLES = { green:"Classic water", desert:"Desert quicksand", cosmic:"Neon void", lava:"Volcanic lava" };
+const THEME_PRESETS = [
+  { name:"Greenfield", style:"green",  fair:"#4caf50", rough:"#1c4a2f", rail:"#8b5a2b", wall:"#9a6533" },
+  { name:"Canyon",     style:"desert", fair:"#8fae4f", rough:"#c48a52", rail:"#a0522d", wall:"#c0693a" },
+  { name:"Neon",       style:"cosmic", fair:"#1b1f4a", rough:"#07061a", rail:"#2de2e6", wall:"#3a1a5c" },
+  { name:"Snowy",      style:"green",  fair:"#dcedf5", rough:"#8fb6cf", rail:"#5b7f99", wall:"#7aa5c2" },
+  { name:"Candy",      style:"green",  fair:"#ffb3d9", rough:"#7a3a6a", rail:"#ff5fa2", wall:"#9b5de5" },
+  { name:"Volcano",    style:"lava",   fair:"#5a5048", rough:"#2a1a14", rail:"#ff6a2a", wall:"#3b2f2a" },
+  { name:"Lagoon",     style:"green",  fair:"#3fb8a8", rough:"#0e4d6b", rail:"#f2e2b8", wall:"#d9b878" },
+  { name:"Midnight",   style:"cosmic", fair:"#16302b", rough:"#05100e", rail:"#7cff6b", wall:"#203a35" },
+];
+const hexRgb = h => { const n = parseInt(h.slice(1), 16); return [n>>16, (n>>8)&255, n&255]; };
+const rgbHex = c => "#" + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+const shade = (h, f) => { const c = hexRgb(h); return rgbHex(f >= 0 ? c.map(v => v + (255-v)*f) : c.map(v => v*(1+f))); };
+const lum = h => { const [r,g,b] = hexRgb(h); return (0.299*r + 0.587*g + 0.114*b) / 255; };
+const isHex = v => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v);
+
+function buildTheme(c){
+  const style = HAZARD_STYLES[c.style] ? c.style : "green";
+  const fair = isHex(c.fair) ? c.fair : "#4caf50", rough = isHex(c.rough) ? c.rough : "#1c4a2f";
+  const rail = isHex(c.rail) ? c.rail : "#8b5a2b", wall = isHex(c.wall) ? c.wall : "#9a6533";
+  return {
+    style,
+    page:`radial-gradient(ellipse at 50% -10%, ${shade(rough, .12)} 0%, ${shade(rough, -.45)} 45%, ${shade(rough, -.75)} 100%)`,
+    rough, roughDot: style === "cosmic" ? "rgba(255,255,255,.6)" : lum(rough) > .5 ? "rgba(0,0,0,.08)" : "rgba(255,255,255,.04)",
+    railOuter:shade(rail, -.35), rail,
+    fairA:fair, fairB:shade(fair, lum(fair) > .8 ? -.04 : .07), wallA:wall, wallB:shade(wall, -.25),
+  };
+}
+
+const BUILTIN = 3;            // WORLDS[0..2] are built in; WORLDS[3] holds the custom map being played
 let LEVELS = GREEN_LEVELS;   // always points at the active world's holes
 let worldIdx = 0;
 function setWorld(w){
   worldIdx = w; LEVELS = WORLDS[w].levels;
-  document.body.style.background = THEMES[WORLDS[w].theme].page;
+  document.body.style.background = theme().page;
 }
-const theme = () => THEMES[WORLDS[worldIdx].theme];
+const theme = () => WORLDS[worldIdx].themeObj || THEMES[WORLDS[worldIdx].theme];
 
 function courseOptions(w){
   const n = WORLDS[w].levels.length, half = Math.ceil(n/2), all = [...Array(n).keys()];
@@ -427,6 +560,7 @@ const inRect = (px, py, r) => px >= r[0] && px <= r[0]+r[2] && py >= r[1] && py 
 
 function loadLevel(i){
   levelIdx = i; level = LEVELS[i];
+  applySize(level.size);
   staticSegs = rectSegs(MIN_X, MIN_Y, MAX_X-MIN_X, MAX_Y-MIN_Y, null);
   (level.walls || []).forEach(w => staticSegs.push(...rectSegs(w[0], w[1], w[2], w[3], null)));
   (level.breakables || []).forEach((w, k) => rectSegs(w[0], w[1], w[2], w[3], null).forEach(s => { s.brk = k; staticSegs.push(s); }));
@@ -693,11 +827,12 @@ function checkGems(){
   (level.gems || []).forEach((g, i) => {
     if (turnGems.has(i) || Math.hypot(ball.x-g[0], ball.y-g[1]) > 15) return;
     turnGems.add(i);
-    save.gems++; persist();
+    const real = worldIdx < BUILTIN;
+    if (real){ save.gems++; persist(); }
     sfx.gem();
     burst(g[0], g[1], "#7fe0ff", 16, 3);
     ring(g[0], g[1], "rgba(127,224,255,", 26);
-    floaters.push({ x:g[0], y:g[1]-16, text:"+1 💎", life:1.1, max:1.1, size:20, color:"#7fe0ff", rise:0.7 });
+    floaters.push({ x:g[0], y:g[1]-16, text:real ? "+1 💎" : "✨", life:1.1, max:1.1, size:20, color:"#7fe0ff", rise:0.7 });
     const el = $("hGems"); el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
     updateHUD();
   });
@@ -713,11 +848,11 @@ function scoreName(s, p){
   return names[d] || (d < 0 ? "Incredible!" : `+${d}`);
 }
 
-function startRound(world, holes, nPlayers, practice, course){
+function startRound(world, holes, nPlayers, practice, course, extra = {}){
   demo = false; token++;
   setWorld(world);
   round = {
-    world, holes, hi:0, pi:0, practice, course,
+    ...extra, world, holes, hi:0, pi:0, practice, course,
     players: Array.from({ length:nPlayers }, (_, i) => ({ name:nPlayers === 1 ? "You" : `P${i+1}`, color:PLAYER_COLORS[i], scores:[] })),
   };
   hideOverlay();
@@ -727,7 +862,7 @@ function startRound(world, holes, nPlayers, practice, course){
 function startTurn(newHole){
   if (newHole) loadLevel(round.holes[round.hi]); else { resetBall(); trail = []; }
   const p = curPlayer();
-  const holeLabel = round.practice ? `Practice · Hole ${levelIdx+1}` : `Hole ${round.hi+1} of ${round.holes.length}`;
+  const holeLabel = round.test ? `Test · Hole ${levelIdx+1}` : round.practice ? `Practice · Hole ${levelIdx+1}` : `Hole ${round.hi+1} of ${round.holes.length}`;
   banner = { title:level.name, sub:`${holeLabel} · Par ${level.par}` + (round.players.length > 1 ? ` · ${p.name}'s turn` : ""), life:2.2, max:2.2, color:p.color };
   if (level.tip && newHole) floaters.push({ x:W/2, y:H-20, text:level.tip, life:4.5, max:4.5, size:16, color:"#fff" });
   state = "aim";
@@ -769,7 +904,7 @@ function startDemo(){
   nextDemo();
 }
 function nextDemo(){
-  const open = WORLDS.map((w, i) => i).filter(i => save.unlocked.includes(WORLDS[i].id));
+  const open = WORLDS.slice(0, BUILTIN).map((w, i) => i).filter(i => save.unlocked.includes(WORLDS[i].id));
   const w = overlay.dataset.world != null && open.includes(+overlay.dataset.world) ? +overlay.dataset.world : open[Math.floor(Math.random()*open.length)];
   setWorld(w);
   loadLevel(Math.floor(Math.random()*LEVELS.length));
@@ -845,12 +980,12 @@ function drawWallRect(x, y, w, h, hazard){
     const T = theme(), g = ctx.createLinearGradient(x, y, x+w, y+h);
     g.addColorStop(0, T.wallA); g.addColorStop(1, T.wallB);
     ctx.fillStyle = g; rr(x, y, w, h, 5); ctx.fill();
-    if (WORLDS[worldIdx].theme === "cosmic"){
+    if (theme().style === "cosmic"){
       ctx.save(); ctx.shadowColor = "#ff3cac"; ctx.shadowBlur = 10;
       ctx.strokeStyle = "#ff3cac"; ctx.lineWidth = 2; rr(x+1, y+1, w-2, h-2, 5); ctx.stroke(); ctx.restore();
     } else {
       ctx.fillStyle = "rgba(255,255,255,.14)"; rr(x+2, y+2, w-4, Math.min(5, h-4), 3); ctx.fill();
-      if (WORLDS[worldIdx].theme === "desert"){   // rock strata
+      if (theme().style === "desert"){   // rock strata
         ctx.strokeStyle = "rgba(80,30,10,.35)"; ctx.lineWidth = 1.5;
         if (h > w) for (let yy = y + 14; yy < y + h - 4; yy += 16){ ctx.beginPath(); ctx.moveTo(x+3, yy); ctx.lineTo(x+w-3, yy+3); ctx.stroke(); }
         else for (let xx = x + 14; xx < x + w - 4; xx += 16){ ctx.beginPath(); ctx.moveTo(xx, y+3); ctx.lineTo(xx+3, y+h-3); ctx.stroke(); }
@@ -875,7 +1010,7 @@ function drawCrystal(r){
 }
 
 function drawBumper(b){
-  const th = WORLDS[worldIdx].theme, r = b.r * (1 + b.flash*0.2), lit = b.flash > 0.1;
+  const th = theme().style, r = b.r * (1 + b.flash*0.2), lit = b.flash > 0.1;
   ctx.fillStyle = "rgba(0,0,0,.25)"; circle(b.x+3, b.y+4, b.r); ctx.fill();
   if (th === "desert"){            // top-down cactus
     ctx.fillStyle = lit ? "#b8f27a" : "#3f8f3a"; circle(b.x, b.y, r); ctx.fill();
@@ -899,7 +1034,7 @@ function drawBumper(b){
 }
 
 function drawCourse(){
-  const T = theme(), th = WORLDS[worldIdx].theme;
+  const T = theme(), th = T.style;
 
   // rough / backdrop
   ctx.fillStyle = T.rough; ctx.fillRect(-20, -20, W+40, H+40);
@@ -1052,6 +1187,25 @@ function drawCourse(){
     }
     ctx.restore();
     ctx.strokeStyle = "rgba(183,125,255,.7)"; ctx.lineWidth = 2; rr(r[0], r[1], r[2], r[3], Math.min(r[2], r[3])/2.2); ctx.stroke();
+  });
+  if (th === "lava") (level.water || []).forEach((r, k) => {
+    ctx.save(); ctx.shadowColor = "#ff5a1f"; ctx.shadowBlur = 18;
+    ctx.fillStyle = "#7a1d06"; rr(r[0]-2, r[1]-2, r[2]+4, r[3]+4, 14); ctx.fill(); ctx.restore();
+    const lg = ctx.createLinearGradient(r[0], r[1], r[0]+r[2], r[1]+r[3]);
+    lg.addColorStop(0, "#ff7a1a"); lg.addColorStop(.5, "#ff3d00"); lg.addColorStop(1, "#ffb21a");
+    ctx.fillStyle = lg; rr(r[0], r[1], r[2], r[3], 12); ctx.fill();
+    ctx.save(); rr(r[0], r[1], r[2], r[3], 12); ctx.clip();
+    ctx.fillStyle = "rgba(80,15,0,.45)";
+    for (let i = 0; i < 8; i++){
+      const x = r[0] + ((hash(i+k*5)*r[2] + t*8*(i%2 ? 1 : -1)) % r[2] + r[2]) % r[2], y = r[1] + hash(i*3+k)*r[3];
+      ctx.beginPath(); ctx.ellipse(x, y, 10 + hash(i)*14, 5 + hash(i+1)*6, hash(i+2)*3, 0, Math.PI*2); ctx.fill();
+    }
+    for (let i = 0; i < 5; i++){
+      const ph = (t*0.7 + hash(i+k)) % 1;
+      ctx.fillStyle = `rgba(255,230,120,${1-ph})`;
+      circle(r[0] + hash(i*7+k)*r[2], r[1] + hash(i*11+k)*r[3], 2 + ph*5); ctx.fill();
+    }
+    ctx.restore();
   });
   if (th === "green") (level.water || []).forEach(r => {
     ctx.fillStyle = "#1f6aa8"; rr(r[0]-2, r[1]-2, r[2]+4, r[3]+4, 12); ctx.fill();
@@ -1218,6 +1372,7 @@ function draw(){
   if (ball.r > 0.3){
     ctx.fillStyle = "rgba(0,0,0,.3)"; circle(ball.x+2, ball.y+3, ball.r); ctx.fill();
     ctx.fillStyle = ballColor(); circle(ball.x, ball.y, ball.r); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 1; circle(ball.x, ball.y, ball.r); ctx.stroke();
     ctx.fillStyle = "rgba(0,0,0,.13)"; circle(ball.x+1.5, ball.y+1.5, ball.r*0.72); ctx.fill();
     ctx.fillStyle = ballColor(); circle(ball.x-1.2, ball.y-1.2, ball.r*0.6); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,.75)"; circle(ball.x-2.4, ball.y-2.6, ball.r*0.25); ctx.fill();
@@ -1278,8 +1433,9 @@ function draw(){
     ctx.globalAlpha = a;
     ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(0, H/2-52, W, 104);
     ctx.fillStyle = banner.color; ctx.fillRect(0, H/2-52, W, 4); ctx.fillRect(0, H/2+48, W, 4);
-    ctx.font = `700 44px ${FONT}`; ctx.fillStyle = "#ffd34e"; ctx.fillText(banner.title, W/2 + slide, H/2-10);
-    ctx.font = `500 19px ${FONT}`; ctx.fillStyle = "#fff"; ctx.fillText(banner.sub, W/2 - slide, H/2+26);
+    const bs = Math.min(1, W/800);
+    ctx.font = `700 ${Math.round(44*bs)}px ${FONT}`; ctx.fillStyle = "#ffd34e"; ctx.fillText(banner.title, W/2 + slide, H/2-10);
+    ctx.font = `500 ${Math.round(19*bs)}px ${FONT}`; ctx.fillStyle = "#fff"; ctx.fillText(banner.sub, W/2 - slide, H/2+26);
     ctx.globalAlpha = 1;
   }
 }
@@ -1336,7 +1492,7 @@ function scorecardHTML(){
 
 const isOpen = w => save.unlocked.includes(WORLDS[w].id);
 function worldPicker(act, sel){
-  return `<div class="worlds">${WORLDS.map((w, i) => {
+  return `<div class="worlds">${WORLDS.slice(0, BUILTIN).map((w, i) => {
     const open = isOpen(i), prev = WORLDS[i-1];
     return `<button class="world ${i === sel ? "on" : ""} w-${w.theme}" data-act="${act}" data-w="${i}" ${open ? "" : "disabled"}>
       <span class="we">${open ? w.emoji : "🔒"}</span><b>${w.name}</b>
@@ -1351,10 +1507,10 @@ function showMenu(){
   overlay.dataset.world = menuWorld;
   if (!demo || worldIdx !== menuWorld) startDemo();
   const opts = courseOptions(menuWorld), bestKey = `${WORLDS[menuWorld].id}-${menuCourse}`;
-  const lockedLeft = WORLDS.filter((w, i) => !isOpen(i)).length;
+  const lockedLeft = WORLDS.slice(0, BUILTIN).filter((w, i) => !isOpen(i)).length;
   showOverlay(`
     <h1 class="logo">⛳ Tiny Tees</h1>
-    <div class="tag">Mini golf across ${WORLDS.length} worlds${lockedLeft ? ` · ${lockedLeft} still locked` : " · all unlocked!"}</div>
+    <div class="tag">Mini golf across ${BUILTIN} worlds${lockedLeft ? ` · ${lockedLeft} still locked` : " · all unlocked!"}</div>
     <h3>World</h3>
     ${worldPicker("world", menuWorld)}
     <h3>Players &amp; course</h3>
@@ -1365,6 +1521,7 @@ function showMenu(){
     <div class="row" style="margin-top:16px"><button class="big" data-act="play">Tee off!</button></div>
     <div class="row">
       <button class="ghost" data-act="practice">🎯 Practice</button>
+      <button class="ghost" data-act="custom">🛠️ Custom maps</button>
       <button class="ghost" data-act="shop">🛍️ Ball shop · 💎 ${save.gems}</button>
     </div>
     ${window.innerHeight > window.innerWidth ? `<div class="hint">📱 Tip: turn your phone sideways for a bigger course.</div>` : ""}
@@ -1381,7 +1538,7 @@ function showPractice(){
   showOverlay(`
     <h2>🎯 Practice</h2>
     <div class="muted">Pick any hole and play it on its own.</div>
-    <div class="seg" style="margin-top:10px">${WORLDS.map((w, i) => `<button data-act="pworld" data-w="${i}" class="${i === practiceWorld ? "on" : ""}" ${isOpen(i) ? "" : "disabled"}>${isOpen(i) ? w.emoji : "🔒"} ${w.name}</button>`).join("")}</div>
+    <div class="seg" style="margin-top:10px">${WORLDS.slice(0, BUILTIN).map((w, i) => `<button data-act="pworld" data-w="${i}" class="${i === practiceWorld ? "on" : ""}" ${isOpen(i) ? "" : "disabled"}>${isOpen(i) ? w.emoji : "🔒"} ${w.name}</button>`).join("")}</div>
     <div class="grid">${lv.map((L, i) => `
       <button class="tile" data-act="practiceHole" data-i="${i}">
         <span class="tn">${i+1}</span><span>${L.name}</span>
@@ -1414,12 +1571,12 @@ function showHoleCard(){
   if (round.practice){
     const s = curPlayer().scores[0];
     showOverlay(`
-      <h2>${LEVELS[levelIdx].name}</h2>
+      <h2>${esc(LEVELS[levelIdx].name)}</h2>
       <p>${s} stroke${s === 1 ? "" : "s"} on a par ${level.par} · ${scoreName(s, level.par)}</p>
       <p class="muted">Best on this hole: ${save.holeBest[holeKey(worldIdx, levelIdx)]}</p>
       <div class="row">
         <button data-act="retry">↻ Play again</button>
-        <button class="ghost" data-act="practice">Pick another</button>
+        ${round.test ? `<button class="ghost" data-act="edit">✏️ Back to editor</button>` : `<button class="ghost" data-act="practice">Pick another</button>`}
         <button class="ghost" data-act="menu">Menu</button>
       </div>`);
     return;
@@ -1430,15 +1587,15 @@ function showHoleCard(){
     return `<span><span class="dot" style="--c:${p.color}"></span>${p.name}: <b>${v === MAX_STROKES ? "Max" : scoreName(v, level.par)}</b></span>`;
   }).join("");
   showOverlay(`
-    <h2>Hole ${round.hi+1} · ${level.name}</h2>
+    <h2>Hole ${round.hi+1} · ${esc(level.name)}</h2>
     <div class="results">${results}</div>
     ${scorecardHTML()}
     <div class="row"><button data-act="next">Next hole →</button></div>
-    <div class="hint">Up next: ${LEVELS[round.holes[round.hi+1]].name}</div>`);
+    <div class="hint">Up next: ${esc(LEVELS[round.holes[round.hi+1]].name)}</div>`);
 }
 
 function checkUnlock(){
-  if (round.practice || round.course !== "full") return "";
+  if (round.practice || round.course !== "full" || round.world >= BUILTIN) return "";
   save.completed[WORLDS[round.world].id] = true;
   const next = WORLDS[round.world + 1];
   if (!next || save.unlocked.includes(next.id)){ persist(); return ""; }
@@ -1462,7 +1619,7 @@ function showFinal(){
     showOverlay(`<h1 class="logo" style="font-size:44px">Round complete!</h1>
       <h2 style="margin-top:8px">${label}</h2><p>${verdict}</p>${extra}${unlockHTML}
       ${scorecardHTML()}
-      <div class="row"><button data-act="again">Play again</button><button class="ghost" data-act="menu">Menu</button></div>`);
+      <div class="row"><button data-act="again">Play again</button><button class="ghost" data-act="menu">${round.custom ? "Custom maps" : "Menu"}</button></div>`);
   } else {
     const best = ranked[0].s, winners = ranked.filter(r => r.s === best);
     const title = winners.length > 1 ? "It's a tie!" : `${winners[0].p.name} wins!`;
@@ -1484,7 +1641,8 @@ function showPause(){
     <div class="row">
       <button data-act="resume" data-prev="${prev}">▶ Resume</button>
       ${round.practice ? `<button class="ghost" data-act="retry">↻ Restart hole</button>` : ""}
-      <button class="ghost" data-act="menu">Quit to menu</button>
+      ${round.test ? `<button class="ghost" data-act="edit">✏️ Back to editor</button>` : ""}
+      <button class="ghost" data-act="menu">${round.custom ? "Quit to Custom maps" : "Quit to menu"}</button>
     </div>
     <div class="hint">Tip: pull back farther for more power. The dotted line previews the start of your shot.</div>`);
 }
@@ -1501,10 +1659,16 @@ const ACTIONS = {
   buy:     d => { const s = SKINS.find(x => x.id === d.id); if (save.gems < s.cost) return;
                   save.gems -= s.cost; save.owned.push(s.id); save.skin = s.id; persist(); sfx.buy(); updateHUD(); showShop(); },
   equip:   d => { save.skin = d.id; persist(); showShop(); },
-  menu:    () => { round = null; showMenu(); },
+  menu:    () => {
+    const wasCustom = round && round.custom;
+    if (ED){ edSaveNow(); ED = null; document.body.classList.remove("editing"); }
+    round = null;
+    if (wasCustom){ resize(); showHub(); } else showMenu();
+  },
+  custom:  () => showHub(),
   next:    () => nextHole(),
-  retry:   () => startRound(round.world, round.holes, 1, true, "practice"),
-  again:   () => startRound(round.world, round.holes, round.players.length, false, round.course),
+  retry:   () => startRound(round.world, round.holes, 1, true, round.course, roundExtras()),
+  again:   () => startRound(round.world, round.holes, round.players.length, false, round.course, roundExtras()),
   resume:  d => {
     hideOverlay();
     state = d.prev === "done" ? "done" : d.prev;
@@ -1512,6 +1676,10 @@ const ACTIONS = {
     if (d.prev === "done") showHoleCardOrNextTurn();
   },
 };
+function roundExtras(){
+  const { custom, test, courseRef, editHole, pubId } = round;
+  return { custom, test, courseRef, editHole, pubId };
+}
 function showHoleCardOrNextTurn(){
   if (round.pi < round.players.length - 1 && round.players[round.pi].scores[round.hi] != null){ round.pi++; startTurn(false); }
   else if (round.players[round.pi].scores[round.hi] != null) showHoleCard();
@@ -1521,11 +1689,1009 @@ overlay.addEventListener("click", e => {
   const b = e.target.closest("[data-act]");
   if (!b || b.disabled) return;
   sfx.click();
-  ACTIONS[b.dataset.act](b.dataset);
+  ACTIONS[b.dataset.act](b.dataset, b);
 });
 
 $("btnPause").onclick = () => { if (round && !demo) showPause(); else if (overlay.classList.contains("hidden")) showMenu(); };
 $("btnMute").onclick = () => { save.muted = !save.muted; persist(); updateHUD(); };
+
+// =====================================================================
+//  Custom maps — data, sanitizing, sharing
+// =====================================================================
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const newId = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+const MAX_OBJ = 150, MAX_HOLES = 9;
+const RECT_KEYS = ["walls", "sand", "water", "ice", "conveyors", "breakables"];
+const EMOJIS = ["⛳","🏌️","🌴","🏰","🍭","🌋","❄️","🚀","🐉","🎃","🌈","🏝️","🍄","⭐","🦖","🎪"];
+
+function newHole(n = 1, size = DEFAULT_SIZE){
+  const [w, h] = size;
+  return { name:`Hole ${n}`, par:3, size:[w, h], tee:[100, 40 + Math.round(h/2/10)*10], hole:[40 + w - 80, 40 + Math.round(h/2/10)*10], tip:"" };
+}
+function newCourse(){
+  return { id:newId(), name:"My Course", emoji:"⛳", author:save.creator || "",
+    theme:{ ...THEME_PRESETS[0] }, holes:[newHole(1)], created:Date.now(), updated:Date.now() };
+}
+
+function sanitizeHole(h, n){
+  h = h && typeof h === "object" ? h : {};
+  const num = (v, lo, hi, d) => Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : d;
+  const sw = Math.round(num(h.size && h.size[0], SIZE_MIN[0], SIZE_MAX[0], DEFAULT_SIZE[0]) / 20) * 20;
+  const sh = Math.round(num(h.size && h.size[1], SIZE_MIN[1], SIZE_MAX[1], DEFAULT_SIZE[1]) / 20) * 20;
+  const X = v => num(v, 40, 40 + sw, 40 + sw/2), Y = v => num(v, 40, 40 + sh, 40 + sh/2);
+  const list = (a, f) => (Array.isArray(a) ? a : []).slice(0, MAX_OBJ).filter(o => o && typeof o === "object").map(f);
+  const out = {
+    name:String(h.name || `Hole ${n}`).slice(0, 30), par:Math.round(num(h.par, 1, 9, 3)), size:[sw, sh],
+    tip:String(h.tip || "").slice(0, 60),
+    tee:[X(h.tee && h.tee[0]), Y(h.tee && h.tee[1])], hole:[X(h.hole && h.hole[0]), Y(h.hole && h.hole[1])],
+  };
+  RECT_KEYS.forEach(k => {
+    const a = list(h[k], r => {
+      const o = [X(r[0]), Y(r[1]), num(r[2], 4, sw, 40), num(r[3], 4, sh, 40)];
+      if (k === "conveyors") o.push(num(r[4], -360, 360, 0));
+      return o;
+    });
+    if (a.length) out[k] = a;
+  });
+  const add = (k, a) => { if (a.length) out[k] = a; };
+  add("bumpers", list(h.bumpers, b => [X(b[0]), Y(b[1]), num(b[2], 6, 60, 18)]));
+  add("gems", list(h.gems, g => [X(g[0]), Y(g[1])]));
+  add("boosts", list(h.boosts, b => [X(b[0]), Y(b[1]), num(b[2], -360, 360, 0)]));
+  add("portals", list(h.portals, p => [X(p[0]), Y(p[1]), X(p[2]), Y(p[3])]).slice(0, PORTAL_COLORS.length * 3));
+  add("slopes", list(h.slopes, s => ({ x:X(s.x), y:Y(s.y), r:num(s.r, 20, 300, 90), k:num(s.k, -0.4, 0.4, 0.15) || 0.15 })));
+  add("movers", list(h.movers, m => ({ x:X(m.x), y:Y(m.y), w:num(m.w, 6, 400, 30), h:num(m.h, 6, 400, 60),
+    ax:num(m.ax, -400, 400, 0), ay:num(m.ay, -400, 400, 40), speed:num(m.speed, 0.2, 5, 1.8) })));
+  add("spinners", list(h.spinners, s => ({ x:X(s.x), y:Y(s.y), len:num(s.len, 20, 200, 66), speed:num(s.speed, -5, 5, 1.4),
+    blades:Math.round(num(s.blades, 1, 8, 4)) })));
+  return out;
+}
+
+function sanitizeCourse(c){
+  c = c && typeof c === "object" ? c : {};
+  const t = c.theme || {};
+  const holes = (Array.isArray(c.holes) ? c.holes : []).slice(0, MAX_HOLES).map((h, i) => sanitizeHole(h, i+1));
+  return {
+    id:/^[a-z0-9]{4,20}$/.test(c.id) ? c.id : newId(),
+    name:String(c.name || "Untitled course").slice(0, 40), emoji:EMOJIS.includes(c.emoji) ? c.emoji : "⛳",
+    author:String(c.author || "").slice(0, 24),
+    theme:{ style:HAZARD_STYLES[t.style] ? t.style : "green", fair:isHex(t.fair) ? t.fair : "#4caf50",
+      rough:isHex(t.rough) ? t.rough : "#1c4a2f", rail:isHex(t.rail) ? t.rail : "#8b5a2b", wall:isHex(t.wall) ? t.wall : "#9a6533" },
+    holes:holes.length ? holes : [newHole(1)],
+    created:+c.created || Date.now(), updated:+c.updated || Date.now(),
+    ...(typeof c.pubId === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(c.pubId) ? { pubId:c.pubId } : {}),
+  };
+}
+const stripCourse = c => ({ name:c.name, emoji:c.emoji, author:c.author, theme:c.theme, holes:c.holes });
+
+save.maps = store.get("maps", []).map(sanitizeCourse);
+save.creator = store.get("creator", "");
+save.liked = store.get("liked", {});
+
+function customWorld(c){
+  return { id:"custom-" + c.id, name:c.name, emoji:c.emoji || "⛳", levels:c.holes, themeObj:buildTheme(c.theme), blurb:"" };
+}
+function playCourse(c, holes, nPlayers, extra = {}){
+  WORLDS[BUILTIN] = customWorld(c);
+  startRound(BUILTIN, holes, nPlayers, !!extra.test, extra.test ? "test" : "full", { custom:true, courseRef:c, ...extra });
+}
+
+// ---- share codes: deflate + base64url, so a whole course fits in a link ----
+const b64u = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const unb64u = s => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+  const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+async function encodeCourse(c){
+  const bytes = new TextEncoder().encode(JSON.stringify(stripCourse(c)));
+  if (window.CompressionStream){
+    const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    return "z" + b64u(new Uint8Array(await new Response(cs).arrayBuffer()));
+  }
+  return "j" + b64u(bytes);
+}
+async function decodeCourse(text){
+  let code = String(text).trim();
+  const m = code.match(/[#&?]map=([A-Za-z0-9_-]+)/); if (m) code = m[1];
+  if (!/^[zj][A-Za-z0-9_-]+$/.test(code)) throw new Error("That doesn't look like a map code.");
+  const bytes = unb64u(code.slice(1));
+  let json;
+  if (code[0] === "z"){
+    const ds = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    json = await new Response(ds).text();
+  } else json = new TextDecoder().decode(bytes);
+  if (json.length > 400000) throw new Error("Map is too big.");
+  return sanitizeCourse({ ...JSON.parse(json), id:newId() });
+}
+const shareUrl = code => `${location.origin}${location.pathname}#map=${code}`;
+const pubUrl = id => `${location.origin}${location.pathname}#pub=${id}`;
+
+function toast(msg){
+  const el = $("toast"); el.textContent = msg; el.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2400);
+}
+async function copyText(txt){
+  try { await navigator.clipboard.writeText(txt); toast("Copied to clipboard ✓"); return true; }
+  catch(e){ return false; }
+}
+const community = () => window.TTCommunity && window.TTCommunity.status !== "off" ? window.TTCommunity : null;
+
+// =====================================================================
+//  Map editor
+// =====================================================================
+const ED_TOOLS = [
+  { id:"select",     icon:"👆", label:"Select & move (V)" },
+  { id:"tee",        icon:"🏁", label:"Tee — where the ball starts" },
+  { id:"hole",       icon:"⛳", label:"Hole (cup)" },
+  { id:"walls",      icon:"🧱", label:"Wall (drag to draw)", kind:"rect", def:[120, 20] },
+  { id:"sand",       icon:"🏖️", label:"Sand trap (drag to draw)", kind:"rect", def:[120, 90] },
+  { id:"water",      icon:"🌊", label:"Water / quicksand / void / lava (drag to draw)", kind:"rect", def:[120, 90] },
+  { id:"ice",        icon:"🧊", label:"Ice (drag to draw)", kind:"rect", def:[160, 110] },
+  { id:"conveyors",  icon:"⏩", label:"Conveyor belt (drag to draw)", kind:"rect", def:[140, 70] },
+  { id:"breakables", icon:"💠", label:"Crystal — smash it with a hard hit", kind:"rect", def:[20, 120] },
+  { id:"bumpers",    icon:"🔴", label:"Bumper", kind:"circle" },
+  { id:"boosts",     icon:"⚡", label:"Boost pad", kind:"point" },
+  { id:"portals",    icon:"🌀", label:"Portal pair (click twice)", kind:"portal" },
+  { id:"hills",      icon:"⛰️", label:"Hill — pushes the ball away", kind:"slope" },
+  { id:"dips",       icon:"🕳️", label:"Dip / gravity well — pulls the ball in", kind:"slope" },
+  { id:"movers",     icon:"↔️", label:"Moving block", kind:"mover" },
+  { id:"spinners",   icon:"🌬️", label:"Windmill", kind:"spinner" },
+  { id:"gems",       icon:"💎", label:"Gem (just for fun in custom maps)", kind:"point" },
+  { id:"erase",      icon:"🧽", label:"Eraser (E)" },
+];
+const KEY_NAMES = { tee:"Tee", hole:"Hole", walls:"Wall", sand:"Sand", water:"Water hazard", ice:"Ice", conveyors:"Conveyor belt",
+  breakables:"Crystal", bumpers:"Bumper", boosts:"Boost pad", portals:"Portal pair", slopes:"Slope", movers:"Moving block",
+  spinners:"Windmill", gems:"Gem" };
+const KEY_ICON = { tee:"🏁", hole:"⛳", walls:"🧱", sand:"🏖️", water:"🌊", ice:"🧊", conveyors:"⏩", breakables:"💠", bumpers:"🔴",
+  boosts:"⚡", portals:"🌀", slopes:"⛰️", movers:"↔️", spinners:"🌬️", gems:"💎" };
+const SIZE_PRESETS = [["Small",[560,340]],["Medium",[720,420]],["Large",[960,560]],["Huge",[1200,720]],["Tall",[480,700]]];
+
+let ED = null;
+const eh = () => ED.course.holes[ED.hi];
+const sn = v => ED.snap ? Math.round(v / 10) * 10 : Math.round(v);
+const clampX = v => Math.max(MIN_X, Math.min(MAX_X, v));
+const clampY = v => Math.max(MIN_Y, Math.min(MAX_Y, v));
+const arrOf = (h, k) => (h[k] = h[k] || []);
+const countObjs = h => Object.keys(KEY_NAMES).reduce((n, k) => n + (Array.isArray(h[k]) && k !== "tee" && k !== "hole" ? h[k].length : 0), 0);
+
+function openEditor(c, hi = 0){
+  demo = false; token++; round = null; hideOverlay();
+  ED = { course:c, hi:Math.min(hi, c.holes.length - 1), tool:"select", sel:null, op:null, snap:true,
+         undo:[], redo:[], pendingPortal:null, clip:null, before:null, hover:null };
+  document.body.classList.add("editing");
+  buildEdTools();
+  edRebuild();
+  renderEdTop();
+  resize();
+}
+function closeEditor(){
+  edSaveNow();
+  ED = null;
+  document.body.classList.remove("editing");
+  state = "idle";
+  applySize(null);
+  resize();
+  showHub();
+}
+
+function edRebuild(panel = true){
+  WORLDS[BUILTIN] = customWorld(ED.course);
+  worldIdx = BUILTIN; LEVELS = WORLDS[BUILTIN].levels;
+  document.body.style.background = theme().page;
+  loadLevel(ED.hi);
+  state = "editing";
+  edScheduleSave();
+  if (panel) renderPanel();
+}
+
+// ---- undo / redo ----
+function edBegin(){ ED.before = JSON.stringify(ED.course); }
+function edCommit(){
+  if (ED.before == null) return;
+  if (ED.before !== JSON.stringify(ED.course)){
+    ED.undo.push(ED.before); if (ED.undo.length > 100) ED.undo.shift(); ED.redo = [];
+  }
+  ED.before = null;
+}
+function edRestore(json){
+  const data = JSON.parse(json), c = ED.course;
+  Object.keys(c).forEach(k => delete c[k]); Object.assign(c, data);
+  ED.hi = Math.min(ED.hi, c.holes.length - 1); ED.sel = null;
+  renderEdTop(); edRebuild();
+}
+function edUndo(){ if (!ED.undo.length) return toast("Nothing to undo"); ED.redo.push(JSON.stringify(ED.course)); edRestore(ED.undo.pop()); }
+function edRedo(){ if (!ED.redo.length) return toast("Nothing to redo"); ED.undo.push(JSON.stringify(ED.course)); edRestore(ED.redo.pop()); }
+
+// ---- autosave ----
+function edScheduleSave(){
+  clearTimeout(edScheduleSave.t);
+  const el = $("edSaved"); if (el) el.textContent = "Saving…";
+  edScheduleSave.t = setTimeout(edSaveNow, 500);
+}
+function edSaveNow(){
+  if (!ED) return;
+  clearTimeout(edScheduleSave.t);
+  ED.course.updated = Date.now();
+  if (!save.maps.includes(ED.course)) save.maps.unshift(ED.course);
+  persist();
+  const el = $("edSaved"); if (el) el.textContent = "Saved ✓";
+}
+
+// ---- object helpers ----
+function objRef(sel){ const h = eh(); return sel.key === "tee" || sel.key === "hole" ? h[sel.key] : (h[sel.key] || [])[sel.i]; }
+const objExists = sel => !!objRef(sel);
+
+function boundsOf(sel){
+  const o = objRef(sel), k = sel.key;
+  if (k === "tee" || k === "hole") return [o[0]-14, o[1]-14, 28, 28];
+  if (RECT_KEYS.includes(k)) return [o[0], o[1], o[2], o[3]];
+  if (k === "gems") return [o[0]-10, o[1]-13, 20, 26];
+  if (k === "boosts") return [o[0]-24, o[1]-24, 48, 48];
+  if (k === "portals"){ const j = (sel.part || 0)*2; return [o[j]-18, o[j+1]-18, 36, 36]; }
+  if (k === "bumpers") return [o[0]-o[2], o[1]-o[2], o[2]*2, o[2]*2];
+  if (k === "slopes") return [o.x-o.r, o.y-o.r, o.r*2, o.r*2];
+  if (k === "spinners") return [o.x-o.len, o.y-o.len, o.len*2, o.len*2];
+  if (k === "movers") return [o.x-o.w/2, o.y-o.h/2, o.w, o.h];
+  return [0, 0, 0, 0];
+}
+function handleOf(sel){
+  const o = objRef(sel), k = sel.key;
+  if (!o) return null;
+  if (RECT_KEYS.includes(k)) return [o[0]+o[2], o[1]+o[3]];
+  if (k === "movers") return [o.x+o.w/2, o.y+o.h/2];
+  if (k === "bumpers") return [o[0]+o[2], o[1]];
+  if (k === "slopes") return [o.x+o.r, o.y];
+  if (k === "spinners") return [o.x+o.len, o.y];
+  return null;
+}
+
+function hitTest(x, y){
+  const h = eh(), near = (px, py, r) => Math.hypot(x-px, y-py) <= r;
+  const inR = (r, pad = 3) => x >= r[0]-pad && x <= r[0]+r[2]+pad && y >= r[1]-pad && y <= r[1]+r[3]+pad;
+  const rev = (k, f) => { const a = h[k] || []; for (let i = a.length - 1; i >= 0; i--) if (f(a[i], i)) return i; return -1; };
+  let i;
+  if (near(h.tee[0], h.tee[1], 15)) return { key:"tee" };
+  if (near(h.hole[0], h.hole[1], 16)) return { key:"hole" };
+  if ((i = rev("gems", g => near(g[0], g[1], 13))) >= 0) return { key:"gems", i };
+  for (let j = (h.portals || []).length - 1; j >= 0; j--){
+    const p = h.portals[j];
+    if (near(p[0], p[1], 17)) return { key:"portals", i:j, part:0 };
+    if (near(p[2], p[3], 17)) return { key:"portals", i:j, part:1 };
+  }
+  if ((i = rev("boosts", b => near(b[0], b[1], 22))) >= 0) return { key:"boosts", i };
+  if ((i = rev("spinners", s => near(s.x, s.y, 18) || (Math.hypot(x-s.x, y-s.y) <= s.len && ED.sel && ED.sel.key === "spinners"))) >= 0) return { key:"spinners", i };
+  if ((i = rev("bumpers", b => near(b[0], b[1], b[2] + 3))) >= 0) return { key:"bumpers", i };
+  if ((i = rev("movers", m => inR([m.x-m.w/2, m.y-m.h/2, m.w, m.h], 5))) >= 0) return { key:"movers", i };
+  for (const k of ["breakables", "walls", "conveyors", "ice", "water", "sand"])
+    if ((i = rev(k, r => inR(r))) >= 0) return { key:k, i };
+  if ((i = rev("slopes", s => near(s.x, s.y, s.r * 0.75))) >= 0) return { key:"slopes", i };
+  return null;
+}
+
+function moveObj(sel, orig, dx, dy){
+  const o = objRef(sel), k = sel.key;
+  if (k === "portals"){ const j = (sel.part || 0)*2; o[j] = clampX(sn(orig[j]+dx)); o[j+1] = clampY(sn(orig[j+1]+dy)); return; }
+  if (Array.isArray(o)){
+    if (RECT_KEYS.includes(k)){
+      o[0] = Math.max(MIN_X, Math.min(MAX_X - Math.min(o[2], MAX_X-MIN_X), sn(orig[0]+dx)));
+      o[1] = Math.max(MIN_Y, Math.min(MAX_Y - Math.min(o[3], MAX_Y-MIN_Y), sn(orig[1]+dy)));
+    } else { o[0] = clampX(sn(orig[0]+dx)); o[1] = clampY(sn(orig[1]+dy)); }
+  } else { o.x = clampX(sn(orig.x+dx)); o.y = clampY(sn(orig.y+dy)); }
+}
+function resizeObj(sel, p){
+  const o = objRef(sel), k = sel.key;
+  if (RECT_KEYS.includes(k)){ o[2] = Math.max(8, Math.min(MAX_X - o[0], sn(p.x) - o[0])); o[3] = Math.max(8, Math.min(MAX_Y - o[1], sn(p.y) - o[1])); }
+  else if (k === "movers"){ o.w = Math.max(8, sn(2*Math.abs(p.x - o.x))); o.h = Math.max(8, sn(2*Math.abs(p.y - o.y))); }
+  else if (k === "bumpers") o[2] = Math.round(Math.max(6, Math.min(60, Math.hypot(p.x-o[0], p.y-o[1]))));
+  else if (k === "slopes") o.r = Math.round(Math.max(20, Math.min(300, Math.hypot(p.x-o.x, p.y-o.y))));
+  else if (k === "spinners") o.len = Math.round(Math.max(20, Math.min(200, Math.hypot(p.x-o.x, p.y-o.y))));
+}
+function removeSel(){
+  const s = ED.sel; if (!s || s.key === "tee" || s.key === "hole") return;
+  edBegin(); eh()[s.key].splice(s.i, 1); if (!eh()[s.key].length) delete eh()[s.key];
+  ED.sel = null; edCommit(); edRebuild();
+}
+function duplicateSel(fromClip){
+  const src = fromClip ? ED.clip : ED.sel && ED.sel.key !== "tee" && ED.sel.key !== "hole" ? { key:ED.sel.key, obj:objRef(ED.sel) } : null;
+  if (!src) return;
+  if (countObjs(eh()) >= MAX_OBJ) return toast(`This hole is full (max ${MAX_OBJ} objects)`);
+  edBegin();
+  const o = JSON.parse(JSON.stringify(src.obj)), d = 20;
+  if (Array.isArray(o)){ o[0] += d; o[1] += d; if (src.key === "portals"){ o[2] += d; o[3] += d; } } else { o.x += d; o.y += d; }
+  arrOf(eh(), src.key).push(o);
+  ED.sel = { key:src.key, i:eh()[src.key].length - 1, part:0 };
+  if (fromClip) ED.clip = { key:src.key, obj:JSON.parse(JSON.stringify(o)) };
+  edCommit(); edRebuild();
+}
+function rotateSel(step = 45){
+  const s = ED.sel; if (!s) return;
+  const o = objRef(s);
+  edBegin();
+  if (s.key === "boosts") o[2] = (o[2] + step + 360) % 360;
+  else if (s.key === "conveyors") o[4] = (o[4] + step + 360) % 360;
+  else if (RECT_KEYS.includes(s.key) || s.key === "movers"){
+    if (Array.isArray(o)){ const cx = o[0]+o[2]/2, cy = o[1]+o[3]/2; [o[2], o[3]] = [o[3], o[2]]; o[0] = sn(cx-o[2]/2); o[1] = sn(cy-o[3]/2); }
+    else { [o.w, o.h] = [o.h, o.w]; [o.ax, o.ay] = [o.ay, o.ax]; }
+  } else if (s.key === "spinners") o.speed = -o.speed;
+  edCommit(); edRebuild();
+}
+function clampAll(h){
+  const fx = v => clampX(v), fy = v => clampY(v);
+  h.tee = [fx(h.tee[0]), fy(h.tee[1])]; h.hole = [fx(h.hole[0]), fy(h.hole[1])];
+  RECT_KEYS.forEach(k => (h[k] || []).forEach(r => {
+    r[2] = Math.min(r[2], MAX_X-MIN_X); r[3] = Math.min(r[3], MAX_Y-MIN_Y);
+    r[0] = Math.max(MIN_X, Math.min(MAX_X - r[2], r[0])); r[1] = Math.max(MIN_Y, Math.min(MAX_Y - r[3], r[1]));
+  }));
+  ["bumpers", "gems", "boosts"].forEach(k => (h[k] || []).forEach(o => { o[0] = fx(o[0]); o[1] = fy(o[1]); }));
+  (h.portals || []).forEach(p => { p[0] = fx(p[0]); p[1] = fy(p[1]); p[2] = fx(p[2]); p[3] = fy(p[3]); });
+  ["slopes", "movers", "spinners"].forEach(k => (h[k] || []).forEach(o => { o.x = fx(o.x); o.y = fy(o.y); }));
+}
+
+// ---- warnings shown in the panel ----
+function holeWarnings(h){
+  const W_ = [];
+  const inAny = (p, keys) => keys.some(k => (h[k] || []).some(r => inRect(p[0], p[1], r)));
+  if (inAny(h.tee, ["walls", "breakables"])) W_.push("The tee is inside a wall.");
+  if (inAny(h.tee, ["water"])) W_.push("The tee is in a hazard — every shot would splash.");
+  if (inAny(h.hole, ["walls", "breakables"])) W_.push("The hole is inside a wall, so it can't be reached.");
+  if (inAny(h.hole, ["water"])) W_.push("The hole is inside a hazard.");
+  if (Math.hypot(h.tee[0]-h.hole[0], h.tee[1]-h.hole[1]) < 40) W_.push("The tee and hole are very close together.");
+  if ((h.portals || []).some(p => Math.hypot(p[0]-p[2], p[1]-p[3]) < 40)) W_.push("A portal's two ends are almost on top of each other.");
+  return W_;
+}
+
+// ---- tool palette & top bar ----
+function buildEdTools(){
+  $("edTools").innerHTML = ED_TOOLS.map(t => `<button data-tool="${t.id}" title="${esc(t.label)}" class="${t.id === ED.tool ? "on" : ""}">${t.icon}</button>`).join("");
+}
+function setTool(id){
+  ED.tool = id; ED.pendingPortal = null;
+  if (id !== "select") ED.sel = null;
+  buildEdTools(); renderPanel();
+  canvas.style.cursor = id === "select" ? "default" : id === "erase" ? "not-allowed" : "crosshair";
+}
+function renderEdTop(){
+  const c = ED.course;
+  $("edName").value = c.name;
+  $("edEmoji").textContent = c.emoji;
+  $("edHoles").innerHTML = c.holes.map((h, i) => `<button class="${i === ED.hi ? "on" : ""}" data-ed="hole" data-i="${i}" title="${esc(h.name)}">${i+1}</button>`).join("")
+    + (c.holes.length < MAX_HOLES ? `<button data-ed="addHole" title="Add a hole">＋</button>` : "");
+  $("edSnap").classList.toggle("on", ED.snap);
+}
+
+// ---- inspector panel ----
+function fieldsFor(sel){
+  const o = objRef(sel), k = sel.key, F = [];
+  const P = (label, get, set, min, max, step = 1) => F.push({ label, get, set, min, max, step });
+  const xyA = (ix, iy, lx = "X", ly = "Y") => { P(lx, () => o[ix], v => o[ix] = v, MIN_X, MAX_X); P(ly, () => o[iy], v => o[iy] = v, MIN_Y, MAX_Y); };
+  const xyO = () => { P("X", () => o.x, v => o.x = v, MIN_X, MAX_X); P("Y", () => o.y, v => o.y = v, MIN_Y, MAX_Y); };
+  if (k === "tee" || k === "hole" || k === "gems") xyA(0, 1);
+  else if (RECT_KEYS.includes(k)){ xyA(0, 1); P("Width", () => o[2], v => o[2] = v, 8, MAX_X-MIN_X); P("Height", () => o[3], v => o[3] = v, 8, MAX_Y-MIN_Y); }
+  else if (k === "bumpers"){ xyA(0, 1); P("Size", () => o[2], v => o[2] = v, 6, 60); }
+  else if (k === "boosts") xyA(0, 1);
+  else if (k === "portals"){ xyA(0, 1, "A · X", "A · Y"); xyA(2, 3, "B · X", "B · Y"); }
+  else if (k === "slopes"){ xyO(); P("Radius", () => o.r, v => o.r = v, 20, 300);
+    P("Strength", () => Math.abs(o.k), v => o.k = Math.sign(o.k || 1) * v, 0.04, 0.4, 0.01); }
+  else if (k === "movers"){ xyO(); P("Width", () => o.w, v => o.w = v, 8, 400); P("Height", () => o.h, v => o.h = v, 8, 400);
+    P("Slide X", () => o.ax, v => o.ax = v, -300, 300); P("Slide Y", () => o.ay, v => o.ay = v, -300, 300);
+    P("Speed", () => o.speed, v => o.speed = v, 0.2, 5, 0.1); }
+  else if (k === "spinners"){ xyO(); P("Arm length", () => o.len, v => o.len = v, 20, 200);
+    P("Speed", () => o.speed, v => o.speed = v, -4, 4, 0.1); P("Arms", () => o.blades, v => o.blades = Math.round(v), 1, 6); }
+  return F;
+}
+let panelFields = [];
+const DIRS = [[0,"→"],[45,"↘"],[90,"↓"],[135,"↙"],[180,"←"],[225,"↖"],[270,"↑"],[315,"↗"]];
+
+function renderPanel(){
+  if (!ED) return;
+  const el = $("edPanel");
+  if (ED.sel && !objExists(ED.sel)) ED.sel = null;
+  const h = eh();
+  let html = "";
+  panelFields = [];
+  if (ED.sel){
+    const s = ED.sel, o = objRef(s), k = s.key;
+    const title = k === "slopes" ? (o.k > 0 ? "⛰️ Hill" : "🕳️ Dip / gravity well") : `${KEY_ICON[k]} ${KEY_NAMES[k]}`;
+    panelFields = fieldsFor(s);
+    html += `<h4>${title}</h4>`;
+    html += panelFields.map((f, i) => `<label class="fld"><span>${f.label}</span>
+      <input type="range" data-fi="${i}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.get()}">
+      <input type="number" data-fi="${i}" min="${f.min}" max="${f.max}" step="${f.step}" value="${+(+f.get()).toFixed(2)}"></label>`).join("");
+    if (k === "boosts" || k === "conveyors"){
+      const a = ((k === "boosts" ? o[2] : o[4]) % 360 + 360) % 360;
+      html += `<div class="sub">Direction</div><div class="dirs">${DIRS.map(([d, ch]) => `<button data-dir="${d}" class="${Math.abs(a - d) < 1 ? "on" : ""}">${ch}</button>`).join("")}</div>`;
+    }
+    if (k === "slopes") html += `<div class="dirs" style="grid-template-columns:1fr 1fr;margin-top:8px">
+      <button data-slope="1" class="${o.k > 0 ? "on" : ""}">⛰️ Hill</button><button data-slope="-1" class="${o.k < 0 ? "on" : ""}">🕳️ Dip</button></div>`;
+    if (k === "gems") html += `<p class="sub">Gems in custom maps sparkle when collected but don't add to your 💎 wallet.</p>`;
+    if (k === "breakables") html += `<p class="sub">Shatters when the ball hits it hard. Resets for every player's turn.</p>`;
+    if (k === "water") html += `<p class="sub">Looks like ${HAZARD_STYLES[ED.course.theme.style].toLowerCase()} with this theme (change it in 🎨).</p>`;
+    html += `<div class="pbtns">${k !== "tee" && k !== "hole" ? `<button class="ghost" data-pa="dup">⧉ Duplicate</button><button class="ghost" data-pa="del">🗑 Delete</button>` : ""}
+      ${["boosts","conveyors","walls","sand","water","ice","breakables","movers"].includes(k) ? `<button class="ghost" data-pa="rot">⟳ Rotate</button>` : ""}
+      <button class="ghost" data-pa="desel">Done</button></div>`;
+  } else {
+    const n = countObjs(h), warns = holeWarnings(h);
+    html += `<h4>Hole ${ED.hi+1} settings</h4>
+      <label class="fld2"><span>Name</span><input type="text" data-hf="name" maxlength="30" value="${esc(h.name)}"></label>
+      <label class="fld"><span>Par</span><input type="range" data-hf="par" min="1" max="9" value="${h.par}"><input type="number" data-hf="par" min="1" max="9" value="${h.par}"></label>
+      <label class="fld2"><span>Hint</span><input type="text" data-hf="tip" maxlength="60" placeholder="Optional message at the start" value="${esc(h.tip)}"></label>
+      <div class="sub">Course size</div>
+      <label class="fld"><span>Width</span><input type="range" data-hf="w" min="${SIZE_MIN[0]}" max="${SIZE_MAX[0]}" step="20" value="${h.size[0]}"><input type="number" data-hf="w" min="${SIZE_MIN[0]}" max="${SIZE_MAX[0]}" step="20" value="${h.size[0]}"></label>
+      <label class="fld"><span>Height</span><input type="range" data-hf="h" min="${SIZE_MIN[1]}" max="${SIZE_MAX[1]}" step="20" value="${h.size[1]}"><input type="number" data-hf="h" min="${SIZE_MIN[1]}" max="${SIZE_MAX[1]}" step="20" value="${h.size[1]}"></label>
+      <div class="chips">${SIZE_PRESETS.map(([nm, s]) => `<button data-size="${s.join("x")}" class="${s[0] === h.size[0] && s[1] === h.size[1] ? "on" : ""}">${nm}</button>`).join("")}</div>
+      ${warns.map(w => `<div class="warn">⚠️ ${w}</div>`).join("")}
+      <div class="sub">${n} / ${MAX_OBJ} objects on this hole</div>
+      <div class="pbtns">
+        <button class="ghost" data-pa="dupHole" ${ED.course.holes.length >= MAX_HOLES ? "disabled" : ""}>⧉ Copy hole</button>
+        <button class="ghost" data-pa="delHole" ${ED.course.holes.length <= 1 ? "disabled" : ""}>🗑 Delete hole</button>
+        <button class="ghost" data-pa="left" ${ED.hi === 0 ? "disabled" : ""}>◀</button>
+        <button class="ghost" data-pa="right" ${ED.hi >= ED.course.holes.length - 1 ? "disabled" : ""}>▶</button>
+        <button class="ghost" data-pa="clear">Clear hole</button>
+      </div>
+      <details class="keys"><summary>How to build</summary>
+        Pick something on the left, then click (or drag) on the course. Use 👆 to select, drag to move, and pull the
+        <b style="color:var(--accent)">■</b> handle to resize.<br>
+        <kbd>Del</kbd> delete · <kbd>Ctrl</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd> undo/redo · <kbd>Ctrl</kbd>+<kbd>C</kbd>/<kbd>V</kbd>/<kbd>D</kbd> copy/paste/duplicate ·
+        <kbd>R</kbd> rotate · arrow keys nudge · <kbd>G</kbd> snap · <kbd>T</kbd> test · <kbd>V</kbd> select · <kbd>E</kbd> eraser · hold <kbd>Alt</kbd> to place freely
+      </details>`;
+  }
+  el.innerHTML = html;
+}
+
+function panelInput(e, commit){
+  const t = e.target, h = eh();
+  if (t.dataset.fi != null){
+    const f = panelFields[+t.dataset.fi]; if (!f) return;
+    let v = parseFloat(t.value); if (!Number.isFinite(v)) return;
+    v = Math.max(f.min, Math.min(f.max, v));
+    if (ED.before == null) edBegin();
+    f.set(v);
+    t.parentNode.querySelectorAll(`[data-fi="${t.dataset.fi}"]`).forEach(x => { if (x !== t) x.value = +v.toFixed(2); });
+    edRebuild(false);
+    if (commit) edCommit();
+  } else if (t.dataset.hf){
+    const k = t.dataset.hf;
+    if (ED.before == null) edBegin();
+    if (k === "name"){ h.name = t.value.slice(0, 30); $("edHoles").querySelector(`[data-i="${ED.hi}"]`).title = h.name; }
+    else if (k === "tip") h.tip = t.value.slice(0, 60);
+    else {
+      let v = parseInt(t.value, 10); if (!Number.isFinite(v)) return;
+      if (k === "par") h.par = Math.max(1, Math.min(9, v));
+      if (k === "w") h.size[0] = Math.max(SIZE_MIN[0], Math.min(SIZE_MAX[0], Math.round(v/20)*20));
+      if (k === "h") h.size[1] = Math.max(SIZE_MIN[1], Math.min(SIZE_MAX[1], Math.round(v/20)*20));
+      t.parentNode.querySelectorAll(`[data-hf="${k}"]`).forEach(x => { if (x !== t) x.value = v; });
+      if (k === "w" || k === "h"){ applySize(h.size); clampAll(h); }
+    }
+    edRebuild(false);
+    if (commit){ edCommit(); if (k === "w" || k === "h") renderPanel(); }
+  }
+}
+
+function panelClick(e){
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  const h = eh(), c = ED.course;
+  if (b.dataset.dir != null){
+    edBegin(); const o = objRef(ED.sel);
+    if (ED.sel.key === "boosts") o[2] = +b.dataset.dir; else o[4] = +b.dataset.dir;
+    edCommit(); edRebuild(); return;
+  }
+  if (b.dataset.slope){ edBegin(); const o = objRef(ED.sel); o.k = Math.abs(o.k) * +b.dataset.slope; edCommit(); edRebuild(); return; }
+  if (b.dataset.size){
+    edBegin(); const [w, hh] = b.dataset.size.split("x").map(Number);
+    h.size = [w, hh]; applySize(h.size); clampAll(h); edCommit(); edRebuild(); return;
+  }
+  const a = b.dataset.pa;
+  if (a === "del") removeSel();
+  if (a === "dup") duplicateSel(false);
+  if (a === "rot") rotateSel(ED.sel.key === "boosts" || ED.sel.key === "conveyors" ? 45 : 90);
+  if (a === "desel"){ ED.sel = null; renderPanel(); }
+  if (a === "dupHole" && c.holes.length < MAX_HOLES){
+    edBegin(); const copy = JSON.parse(JSON.stringify(h)); copy.name = (h.name + " copy").slice(0, 30);
+    c.holes.splice(ED.hi + 1, 0, copy); ED.hi++; edCommit(); renderEdTop(); edRebuild();
+  }
+  if (a === "delHole" && c.holes.length > 1){
+    if (b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Tap again to delete"; return; }
+    edBegin(); c.holes.splice(ED.hi, 1); ED.hi = Math.max(0, ED.hi - 1); edCommit(); renderEdTop(); edRebuild();
+  }
+  if ((a === "left" && ED.hi > 0) || (a === "right" && ED.hi < c.holes.length - 1)){
+    edBegin(); const j = ED.hi + (a === "left" ? -1 : 1);
+    [c.holes[ED.hi], c.holes[j]] = [c.holes[j], c.holes[ED.hi]]; ED.hi = j; edCommit(); renderEdTop(); edRebuild();
+  }
+  if (a === "clear"){
+    if (b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Tap again to clear"; return; }
+    edBegin(); const keep = { name:h.name, par:h.par, size:h.size, tee:h.tee, hole:h.hole, tip:h.tip };
+    Object.keys(h).forEach(k => delete h[k]); Object.assign(h, keep); edCommit(); edRebuild();
+  }
+}
+
+// ---- canvas interaction ----
+function edPointerDown(p, e){
+  const h = eh(), tool = ED.tool, free = e.altKey;
+  const x = free ? Math.round(clampX(p.x)) : clampX(sn(p.x)), y = free ? Math.round(clampY(p.y)) : clampY(sn(p.y));
+  if (tool === "select"){
+    if (ED.sel){
+      const hd = handleOf(ED.sel);
+      if (hd && Math.hypot(p.x-hd[0], p.y-hd[1]) <= 11){ edBegin(); ED.op = { type:"resize" }; return; }
+    }
+    const hit = hitTest(p.x, p.y);
+    ED.sel = hit; renderPanel();
+    if (hit){ edBegin(); ED.op = { type:"move", start:{ x:p.x, y:p.y }, orig:JSON.parse(JSON.stringify(objRef(hit))) }; }
+    return;
+  }
+  if (tool === "erase"){ edBegin(); ED.op = { type:"erase" }; eraseAt(p); return; }
+  if (tool === "tee" || tool === "hole"){
+    edBegin(); h[tool] = [x, y]; ED.sel = { key:tool };
+    ED.op = { type:"move", start:{ x:p.x, y:p.y }, orig:[x, y] }; edRebuild(); return;
+  }
+  if (countObjs(h) >= MAX_OBJ) return toast(`This hole is full (max ${MAX_OBJ} objects)`);
+  const T = ED_TOOLS.find(t => t.id === tool);
+  if (T.kind === "rect"){ ED.op = { type:"create", x0:x, y0:y, x1:x, y1:y, def:T.def, key:tool }; return; }
+  edBegin();
+  let sel;
+  if (T.kind === "circle"){ arrOf(h, "bumpers").push([x, y, 18]); sel = { key:"bumpers", i:h.bumpers.length-1 }; }
+  else if (tool === "boosts"){ arrOf(h, "boosts").push([x, y, 0]); sel = { key:"boosts", i:h.boosts.length-1 }; }
+  else if (tool === "gems"){ arrOf(h, "gems").push([x, y]); sel = { key:"gems", i:h.gems.length-1 }; }
+  else if (T.kind === "portal"){
+    if ((h.portals || []).length >= PORTAL_COLORS.length * 3){ ED.before = null; return toast("That's the most portals one hole can have"); }
+    if (!ED.pendingPortal){ ED.pendingPortal = [x, y]; ED.before = null; toast("Now click where the other end goes"); return; }
+    arrOf(h, "portals").push([...ED.pendingPortal, x, y]); ED.pendingPortal = null;
+    sel = { key:"portals", i:h.portals.length-1, part:1 };
+  }
+  else if (T.kind === "slope"){ arrOf(h, "slopes").push({ x, y, r:90, k:tool === "hills" ? 0.18 : -0.14 }); sel = { key:"slopes", i:h.slopes.length-1 }; }
+  else if (T.kind === "mover"){ arrOf(h, "movers").push({ x, y, w:30, h:60, ax:0, ay:40, speed:1.8 }); sel = { key:"movers", i:h.movers.length-1 }; }
+  else if (T.kind === "spinner"){ arrOf(h, "spinners").push({ x, y, len:66, speed:1.4, blades:4 }); sel = { key:"spinners", i:h.spinners.length-1 }; }
+  ED.sel = sel; edCommit(); edRebuild();
+}
+function eraseAt(p){
+  const hit = hitTest(p.x, p.y);
+  if (hit && hit.key !== "tee" && hit.key !== "hole"){
+    eh()[hit.key].splice(hit.i, 1); if (!eh()[hit.key].length) delete eh()[hit.key];
+    ED.sel = null; edRebuild();
+    burst(p.x, p.y, "#ffffff", 8, 2);
+  }
+}
+function edPointerMove(p, e){
+  ED.hover = p;
+  const op = ED.op; if (!op) return;
+  if (op.type === "create"){ op.x1 = e.altKey ? Math.round(clampX(p.x)) : clampX(sn(p.x)); op.y1 = e.altKey ? Math.round(clampY(p.y)) : clampY(sn(p.y)); }
+  else if (op.type === "move"){
+    const snapWas = ED.snap; if (e.altKey) ED.snap = false;
+    moveObj(ED.sel, op.orig, p.x - op.start.x, p.y - op.start.y);
+    ED.snap = snapWas; edRebuild(false);
+  }
+  else if (op.type === "resize"){ resizeObj(ED.sel, p); edRebuild(false); }
+  else if (op.type === "erase") eraseAt(p);
+}
+function edPointerUp(){
+  const op = ED.op; ED.op = null; if (!op) return;
+  if (op.type === "create"){
+    const h = eh();
+    let x = Math.min(op.x0, op.x1), y = Math.min(op.y0, op.y1), w = Math.abs(op.x1 - op.x0), hh = Math.abs(op.y1 - op.y0);
+    if (w < 8 || hh < 8){ [w, hh] = op.def; x = sn(op.x0 - w/2); y = sn(op.y0 - hh/2); }
+    w = Math.min(w, MAX_X - MIN_X); hh = Math.min(hh, MAX_Y - MIN_Y);
+    x = Math.max(MIN_X, Math.min(MAX_X - w, x)); y = Math.max(MIN_Y, Math.min(MAX_Y - hh, y));
+    edBegin();
+    const r = [x, y, w, hh]; if (op.key === "conveyors") r.push(0);
+    arrOf(h, op.key).push(r);
+    ED.sel = { key:op.key, i:h[op.key].length - 1 };
+    edCommit(); edRebuild();
+    return;
+  }
+  edCommit();
+  renderPanel();
+}
+
+function edKey(e){
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return false;
+  if (!overlay.classList.contains("hidden")){ if (e.key === "Escape"){ hideOverlay(); return true; } return false; }
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === "z"){ e.shiftKey ? edRedo() : edUndo(); return true; }
+  if (mod && k === "y"){ edRedo(); return true; }
+  if (mod && k === "c" && ED.sel && ED.sel.key !== "tee" && ED.sel.key !== "hole"){ ED.clip = { key:ED.sel.key, obj:JSON.parse(JSON.stringify(objRef(ED.sel))) }; toast("Copied"); return true; }
+  if (mod && k === "v" && ED.clip){ duplicateSel(true); return true; }
+  if (mod && k === "d"){ duplicateSel(false); return true; }
+  if (mod) return false;
+  if (k === "delete" || k === "backspace"){ removeSel(); return true; }
+  if (k === "escape"){ if (ED.pendingPortal) ED.pendingPortal = null; else if (ED.sel){ ED.sel = null; renderPanel(); } else setTool("select"); return true; }
+  if (k === "r"){ rotateSel(ED.sel && (ED.sel.key === "boosts" || ED.sel.key === "conveyors") ? 45 : 90); return true; }
+  if (k === "g"){ ED.snap = !ED.snap; renderEdTop(); toast(ED.snap ? "Snap to grid on" : "Snap to grid off"); return true; }
+  if (k === "t"){ edTest(); return true; }
+  if (k === "v"){ setTool("select"); return true; }
+  if (k === "e"){ setTool("erase"); return true; }
+  if (k.startsWith("arrow") && ED.sel){
+    const d = e.shiftKey ? 20 : ED.snap ? 10 : 1, o = JSON.parse(JSON.stringify(objRef(ED.sel)));
+    const dx = k === "arrowleft" ? -d : k === "arrowright" ? d : 0, dy = k === "arrowup" ? -d : k === "arrowdown" ? d : 0;
+    edBegin(); const snapWas = ED.snap; ED.snap = false; moveObj(ED.sel, o, dx, dy); ED.snap = snapWas; edCommit(); edRebuild();
+    return true;
+  }
+  return false;
+}
+
+function edTest(){
+  edSaveNow();
+  const warns = holeWarnings(eh());
+  playCourse(ED.course, [ED.hi], 1, { test:true, editHole:ED.hi });
+  document.body.classList.remove("editing");
+  resize();
+  if (warns.length) toast("⚠️ " + warns[0]);
+}
+function backToEditor(){
+  const c = round && round.courseRef, hi = round ? round.editHole || 0 : 0;
+  token++;
+  if (c) openEditor(c, hi);
+}
+
+// ---- editor overlay drawing ----
+function drawEditor(){
+  const h = eh();
+  ctx.save();
+  // grid
+  if (ED.snap){
+    ctx.fillStyle = lum(theme().fairA) > 0.55 ? "rgba(0,0,0,.14)" : "rgba(255,255,255,.12)";
+    for (let x = MIN_X; x <= MAX_X; x += 20) for (let y = MIN_Y; y <= MAX_Y; y += 20) ctx.fillRect(x-1, y-1, 2, 2);
+  }
+  // mover paths
+  ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,.55)";
+  (h.movers || []).forEach(m => {
+    ctx.beginPath(); ctx.moveTo(m.x - m.ax, m.y - m.ay); ctx.lineTo(m.x + m.ax, m.y + m.ay); ctx.stroke();
+    ctx.strokeRect(m.x - m.ax - m.w/2, m.y - m.ay - m.h/2, m.w, m.h); ctx.strokeRect(m.x + m.ax - m.w/2, m.y + m.ay - m.h/2, m.w, m.h);
+  });
+  // portal links
+  (h.portals || []).forEach((p, i) => {
+    ctx.strokeStyle = hexToRgba(PORTAL_COLORS[i % PORTAL_COLORS.length]) + ".8)";
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); ctx.stroke();
+  });
+  // boost & conveyor direction arrows (static, easier to read while editing)
+  ctx.setLineDash([]);
+  // tee label
+  ctx.font = `700 11px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.fillStyle = "#fff";
+  ctx.strokeText("TEE", h.tee[0], h.tee[1] - 22); ctx.fillText("TEE", h.tee[0], h.tee[1] - 22);
+  // pending portal
+  if (ED.pendingPortal){
+    const [px, py] = ED.pendingPortal, pulse = (t*2) % 1;
+    ctx.strokeStyle = PORTAL_COLORS[(h.portals || []).length % PORTAL_COLORS.length]; ctx.lineWidth = 3;
+    circle(px, py, 14 + pulse*8); ctx.stroke();
+    if (ED.hover){ ctx.setLineDash([4, 6]); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ED.hover.x, ED.hover.y); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  // rectangle being drawn
+  if (ED.op && ED.op.type === "create"){
+    const o = ED.op, x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1-o.x0), hh = Math.abs(o.y1-o.y0);
+    ctx.fillStyle = "rgba(255,211,78,.25)"; ctx.fillRect(x, y, w, hh);
+    ctx.strokeStyle = "#ffd34e"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(x, y, w, hh); ctx.setLineDash([]);
+    if (w && hh){ ctx.fillStyle = "#fff"; ctx.font = `600 12px ${FONT}`; ctx.fillText(`${w} × ${hh}`, x + w/2, y + hh/2); }
+  }
+  // hover highlight (select tool)
+  if (ED.tool === "select" && ED.hover && !ED.op){
+    const hv = hitTest(ED.hover.x, ED.hover.y);
+    if (hv && !(ED.sel && hv.key === ED.sel.key && hv.i === ED.sel.i && hv.part === ED.sel.part)){
+      const b = boundsOf(hv); ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+      ctx.strokeRect(b[0]-3, b[1]-3, b[2]+6, b[3]+6); ctx.setLineDash([]);
+    }
+  }
+  if (ED.tool === "erase" && ED.hover){
+    const hv = hitTest(ED.hover.x, ED.hover.y);
+    if (hv && hv.key !== "tee" && hv.key !== "hole"){ const b = boundsOf(hv); ctx.fillStyle = "rgba(255,80,80,.3)"; ctx.fillRect(b[0]-3, b[1]-3, b[2]+6, b[3]+6); }
+  }
+  // selection
+  if (ED.sel && objExists(ED.sel)){
+    const b = boundsOf(ED.sel);
+    ctx.strokeStyle = "#ffd34e"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.lineDashOffset = -t*20;
+    ctx.strokeRect(b[0]-4, b[1]-4, b[2]+8, b[3]+8); ctx.setLineDash([]);
+    const hd = handleOf(ED.sel);
+    if (hd){ ctx.fillStyle = "#ffd34e"; ctx.strokeStyle = "#2a2100"; ctx.lineWidth = 2; ctx.fillRect(hd[0]-6, hd[1]-6, 12, 12); ctx.strokeRect(hd[0]-6, hd[1]-6, 12, 12); }
+  }
+  ctx.restore();
+}
+
+// =====================================================================
+//  Custom maps hub (My maps + Community)
+// =====================================================================
+let hubTab = "mine", comSort = "new", comSearch = "", comItems = null, comErr = null, comLoadingKey = null;
+const themeSwatch = th => `background:linear-gradient(135deg, ${th.fair} 0 55%, ${th.rail} 55% 70%, ${th.rough} 70%)`;
+const ago = ms => { const s = (Date.now() - ms) / 1000; return s < 60 ? "just now" : s < 3600 ? `${Math.floor(s/60)}m ago` : s < 86400 ? `${Math.floor(s/3600)}h ago` : `${Math.floor(s/86400)}d ago`; };
+
+function showHub(){
+  token++; round = null;
+  if (!demo) startDemo();
+  const com = community();
+  const tabs = `<div class="seg" style="margin:6px 0 4px">
+      <button data-act="hubTab" data-t="mine" class="${hubTab === "mine" ? "on" : ""}">📁 My maps (${save.maps.length})</button>
+      <button data-act="hubTab" data-t="community" class="${hubTab === "community" ? "on" : ""}">🌐 Community</button></div>`;
+  const players = `<div class="hubbar"><span class="muted">Players</span><div class="seg">${[1,2,3,4].map(n => `<button data-act="hubPlayers" data-n="${n}" class="${n === menuPlayers ? "on" : ""}">${n === 1 ? "Solo" : n + "P"}</button>`).join("")}</div></div>`;
+  let body = "";
+  if (hubTab === "mine"){
+    body = `<div class="hubbar">
+        <button data-act="newMap">＋ New map</button>
+        <button class="ghost" data-act="importMap">📥 Import code</button>
+        <label class="muted">Creator name <input class="textin" id="creatorName" maxlength="24" placeholder="Your name" value="${esc(save.creator)}" style="width:150px"></label>
+      </div>${players}
+      <div class="maplist">${save.maps.length ? save.maps.map(c => `
+        <div class="maprow">
+          <span class="mswatch" style="${themeSwatch(c.theme)}">${c.emoji}</span>
+          <div class="minfo"><b>${esc(c.name)}</b><small>${c.holes.length} hole${c.holes.length === 1 ? "" : "s"} · par ${c.holes.reduce((a, h) => a + h.par, 0)} · edited ${ago(c.updated)}${c.pubId ? " · 🌐 published" : ""}</small></div>
+          <div class="mbtns">
+            <button data-act="playMap" data-id="${c.id}">▶ Play</button>
+            <button class="ghost" data-act="editMap" data-id="${c.id}">✏️ Edit</button>
+            <button class="ghost" data-act="shareMap" data-id="${c.id}" title="Share link">🔗</button>
+            ${com ? `<button class="ghost" data-act="publishMap" data-id="${c.id}" title="${c.pubId ? "Update the public version" : "Publish to Community"}">${c.pubId ? "⟳🌐" : "🌐"}</button>` : ""}
+            <button class="ghost" data-act="deleteMap" data-id="${c.id}" title="Delete">🗑</button>
+          </div>
+        </div>`).join("") : `<div class="empty">You haven't made any maps yet.<br>Tap <b>＋ New map</b> to open the editor and start building.</div>`}
+      </div>`;
+  } else {
+    if (!com){
+      body = `<div class="empty">🌐 Community maps aren't switched on for this copy of the game yet.<br>
+        <span class="muted">The site owner can turn them on by adding a free Firebase project (see the README).<br>
+        In the meantime, you can still share any map with a 🔗 link from <b>My maps</b>.</span></div>`;
+    } else {
+      body = `<div class="hubbar">
+          <div class="seg">${[["new","🆕 New"],["top","❤️ Top"],["played","🔥 Most played"]].map(([k, l]) => `<button data-act="comSort" data-k="${k}" class="${k === comSort ? "on" : ""}">${l}</button>`).join("")}</div>
+          <input class="textin" id="comSearch" placeholder="Search maps…" value="${esc(comSearch)}" style="width:170px">
+          <button class="ghost icon" data-act="comRefresh" title="Refresh">⟳</button>
+        </div>${players}
+        <div class="maplist" id="comList">${comListHTML()}</div>
+        ${com.mock ? `<div class="hint">Running with a local test backend (?community=local). Maps here only live in this browser.</div>` : ""}`;
+      if (!comItems && !comErr) loadCommunity();
+    }
+  }
+  showOverlay(`<h2>🛠️ Custom Maps</h2>
+    <div class="muted">Build your own courses, play them with friends, and share them.</div>
+    ${tabs}${body}
+    <div class="row"><button class="ghost" data-act="menu">← Main menu</button></div>`);
+  overlay.querySelector(".card").classList.add("wide");
+}
+
+function comListHTML(){
+  const com = community();
+  if (!com) return "";
+  if (com.status === "loading" || (!comItems && !comErr)) return `<div class="empty">Loading community maps…</div>`;
+  if (com.status === "error" || comErr) return `<div class="empty">Couldn't reach the community server.<br><span class="muted">${esc(comErr || com.error)}</span></div>`;
+  const q = comSearch.trim().toLowerCase();
+  const items = comItems.filter(m => !q || (m.name || "").toLowerCase().includes(q) || (m.author || "").toLowerCase().includes(q));
+  if (!items.length) return `<div class="empty">${q ? "No maps match your search." : "No public maps yet. Be the first to publish one!"}</div>`;
+  return items.map(m => {
+    const th = m.theme && isHex(m.theme.fair) ? m.theme : { fair:"#4caf50", rail:"#8b5a2b", rough:"#1c4a2f" };
+    const mine = m.uid === com.uid, liked = save.liked[m.id];
+    return `<div class="maprow">
+      <span class="mswatch" style="${themeSwatch({ fair:th.fair, rail:isHex(th.rail) ? th.rail : "#8b5a2b", rough:isHex(th.rough) ? th.rough : "#1c4a2f" })}">${EMOJIS.includes(m.emoji) ? m.emoji : "⛳"}</span>
+      <div class="minfo"><b>${esc(m.name)}</b><small>by ${esc(m.author || "anonymous")}${mine ? " (you)" : ""} · ${+m.holes || 1} hole${+m.holes === 1 ? "" : "s"} · ❤️ ${+m.likes || 0} · ▶ ${+m.plays || 0}${m.createdAt ? " · " + ago(m.createdAt) : ""}</small></div>
+      <div class="mbtns">
+        <button data-act="comPlay" data-id="${esc(m.id)}">▶ Play</button>
+        <button class="ghost" data-act="comLike" data-id="${esc(m.id)}" ${liked || mine ? "disabled" : ""} title="${mine ? "Can't like your own map" : liked ? "Liked" : "Like"}">${liked ? "❤️" : "🤍"}</button>
+        <button class="ghost" data-act="comRemix" data-id="${esc(m.id)}" title="Copy into My maps to edit">⤵ Remix</button>
+        <button class="ghost" data-act="comLink" data-id="${esc(m.id)}" title="Copy link">🔗</button>
+        ${mine ? `<button class="ghost" data-act="comUnpublish" data-id="${esc(m.id)}" title="Remove from Community">🗑</button>` : ""}
+      </div></div>`;
+  }).join("");
+}
+function refreshComList(){ const el = document.getElementById("comList"); if (el) el.innerHTML = comListHTML(); }
+
+async function loadCommunity(){
+  const com = community(); if (!com) return;
+  const key = comSort + ":" + Date.now(); comLoadingKey = key; comErr = null;
+  try {
+    await com.ready;
+    if (com.status !== "ready") throw new Error(com.error || "Community is unavailable.");
+    const items = await com.list(comSort);
+    if (comLoadingKey !== key) return;
+    comItems = items;
+  } catch(e){ if (comLoadingKey === key) comErr = e.message || String(e); }
+  refreshComList();
+}
+window.addEventListener("tt-community", () => { if (hubTab === "community" && document.getElementById("comList")){ comItems = null; comErr = null; showHub(); } });
+
+async function fetchComCourse(id){
+  const com = community(); await com.ready;
+  const m = (comItems || []).find(x => x.id === id) || await com.get(id);
+  if (!m) throw new Error("That map was removed.");
+  const c = sanitizeCourse({ ...JSON.parse(m.data), id:newId() });
+  c.author = String(m.author || c.author || "").slice(0, 24);
+  return { m, c };
+}
+const playedThisSession = new Set();
+async function playCommunity(id){
+  try {
+    const { c } = await fetchComCourse(id);
+    if (!playedThisSession.has(id)){ playedThisSession.add(id); community().play(id).catch(() => {}); }
+    playCourse(c, c.holes.map((_, i) => i), menuPlayers, { pubId:id });
+  } catch(e){ toast("Couldn't load map: " + (e.message || e)); }
+}
+
+function showImport(prefill = ""){
+  showOverlay(`<h2>📥 Import a map</h2>
+    <p class="muted">Paste a share link or map code.</p>
+    <textarea class="textin" id="importText" rows="4" style="width:min(460px,78vw)" placeholder="https://…#map=…">${esc(prefill)}</textarea>
+    <div class="row"><button data-act="importGo">Load map</button><button class="ghost" data-act="hub">Cancel</button></div>`);
+}
+let pendingImport = null;
+function showImportPreview(c, source){
+  pendingImport = c;
+  showOverlay(`<h2>${c.emoji} ${esc(c.name)}</h2>
+    <p class="muted">${c.author ? "by " + esc(c.author) + " · " : ""}${c.holes.length} hole${c.holes.length === 1 ? "" : "s"} · par ${c.holes.reduce((a, h) => a + h.par, 0)}${source ? " · " + source : ""}</p>
+    <div class="mswatch" style="${themeSwatch(c.theme)};width:64px;height:64px;font-size:32px;margin:6px auto">${c.emoji}</div>
+    ${players1()}
+    <div class="row"><button data-act="importPlay">▶ Play</button><button class="ghost" data-act="importSave">💾 Save to My maps</button><button class="ghost" data-act="hub">Cancel</button></div>`);
+}
+const players1 = () => `<div class="hubbar"><span class="muted">Players</span><div class="seg">${[1,2,3,4].map(n => `<button data-act="prevPlayers" data-n="${n}" class="${n === menuPlayers ? "on" : ""}">${n === 1 ? "Solo" : n + "P"}</button>`).join("")}</div></div>`;
+
+async function showShare(c){
+  let code;
+  try { code = await encodeCourse(c); } catch(e){ return toast("Couldn't make a share code"); }
+  const url = shareUrl(code), com = community();
+  showOverlay(`<h2>🔗 Share “${esc(c.name)}”</h2>
+    <p class="muted">Anyone with this link can play the map and save a copy. No account needed.</p>
+    <textarea class="textin" id="shareText" rows="4" readonly style="width:min(480px,80vw);font-size:12px">${esc(url)}</textarea>
+    <div class="row"><button data-act="copyShare">📋 Copy link</button>
+      ${c.pubId && com ? `<button class="ghost" data-act="copyPub" data-id="${esc(c.pubId)}">🌐 Copy Community link</button>` : ""}
+      <button class="ghost" data-act="hub">Done</button></div>
+    <div class="hint">${url.length > 2000 ? "This is a big map, so the link is long. It still works, but some chat apps may cut it off. Copy the code instead if that happens." : ""}</div>`);
+}
+
+async function publishCourse(c){
+  const com = community(); if (!com || publishCourse.busy) return;
+  publishCourse.busy = true;
+  try { await publishCourseInner(c, com); } finally { publishCourse.busy = false; }
+}
+async function publishCourseInner(c, com){
+  if (!save.creator.trim()) return toast("Add your creator name first (top of My maps)");
+  for (const [i, h] of c.holes.entries()){
+    const w = holeWarnings(h).filter(x => /can't be reached|inside a hazard|tee is inside/.test(x));
+    if (w.length) return toast(`Hole ${i+1}: ${w[0]}`);
+  }
+  c.author = save.creator.trim().slice(0, 24);
+  const payload = {
+    name:c.name, nameLower:c.name.toLowerCase(), emoji:c.emoji, author:c.author, holes:c.holes.length,
+    theme:{ fair:c.theme.fair, rail:c.theme.rail, rough:c.theme.rough, style:c.theme.style },
+    data:JSON.stringify(stripCourse(c)),
+  };
+  if (payload.data.length > 190000) return toast("This map is too big to publish");
+  toast(c.pubId ? "Updating…" : "Publishing…");
+  try {
+    await com.ready;
+    if (c.pubId){
+      try { await com.update(c.pubId, payload); }
+      catch(e){ delete c.pubId; c.pubId = await com.publish(payload); }   // removed or not ours anymore → publish fresh
+    } else c.pubId = await com.publish(payload);
+    persist(); comItems = null;
+    toast(c.pubId ? "Published to Community 🌐" : "Done");
+    showHub();
+  } catch(e){ toast("Publish failed: " + (e.message || e)); }
+}
+
+// ---- theme / course settings dialog (from the editor) ----
+function showThemeDialog(){
+  const c = ED.course, t = c.theme;
+  showOverlay(`<h2>🎨 Course look</h2>
+    <h3>Presets</h3>
+    <div class="presets">${THEME_PRESETS.map((p, i) => `<button class="preset" data-preset="${i}" style="background:linear-gradient(135deg, ${p.fair} 0 55%, ${p.rail} 55% 72%, ${p.rough} 72%)"><span>${p.name}</span></button>`).join("")}</div>
+    <h3>Custom colors</h3>
+    <div class="colors">
+      <label><input type="color" data-col="fair" value="${t.fair}"> Fairway</label>
+      <label><input type="color" data-col="rough" value="${t.rough}"> Background</label>
+      <label><input type="color" data-col="rail" value="${t.rail}"> Rails</label>
+      <label><input type="color" data-col="wall" value="${t.wall}"> Walls</label>
+    </div>
+    <h3>Hazard & obstacle style</h3>
+    <div class="seg" style="flex-wrap:wrap;justify-content:center">${Object.entries(HAZARD_STYLES).map(([k, l]) => `<button data-style="${k}" class="${t.style === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <h3>Course icon</h3>
+    <div class="emojis">${EMOJIS.map(e => `<button data-emoji="${e}" class="${c.emoji === e ? "on" : ""}">${e}</button>`).join("")}</div>
+    <div class="row"><button data-act="themeDone">Done</button></div>`);
+  const card = overlay.querySelector(".card");
+  card.addEventListener("input", e => {
+    const col = e.target.dataset.col; if (!col || !isHex(e.target.value)) return;
+    if (ED.before == null) edBegin();
+    c.theme[col] = e.target.value; edRebuild(false);
+  });
+  card.addEventListener("change", e => { if (e.target.dataset.col) edCommit(); });
+  card.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.preset != null){ edBegin(); const p = THEME_PRESETS[+b.dataset.preset]; Object.assign(c.theme, { style:p.style, fair:p.fair, rough:p.rough, rail:p.rail, wall:p.wall }); edCommit(); edRebuild(false); showThemeDialog(); }
+    if (b.dataset.style){ edBegin(); c.theme.style = b.dataset.style; edCommit(); edRebuild(false); showThemeDialog(); }
+    if (b.dataset.emoji){ edBegin(); c.emoji = b.dataset.emoji; edCommit(); renderEdTop(); edRebuild(false); showThemeDialog(); }
+  });
+}
+
+// ---- wiring for the editor DOM ----
+$("edTools").addEventListener("click", e => { const b = e.target.closest("[data-tool]"); if (b) setTool(b.dataset.tool); });
+$("edPanel").addEventListener("input", e => panelInput(e, false));
+$("edPanel").addEventListener("change", e => panelInput(e, true));
+$("edPanel").addEventListener("click", panelClick);
+$("edName").addEventListener("input", e => { if (!ED) return; ED.course.name = e.target.value.slice(0, 40) || "Untitled course"; edScheduleSave(); });
+$("edTop").addEventListener("click", e => {
+  const b = e.target.closest("[data-ed]"); if (!b || !ED) return;
+  const a = b.dataset.ed;
+  if (a === "exit") closeEditor();
+  if (a === "theme" || a === "emoji") showThemeDialog();
+  if (a === "undo") edUndo();
+  if (a === "redo") edRedo();
+  if (a === "snap"){ ED.snap = !ED.snap; renderEdTop(); }
+  if (a === "test") edTest();
+  if (a === "share"){ edSaveNow(); showShare(ED.course); }
+  if (a === "hole"){ ED.hi = +b.dataset.i; ED.sel = null; ED.pendingPortal = null; renderEdTop(); edRebuild(); }
+  if (a === "addHole" && ED.course.holes.length < MAX_HOLES){
+    edBegin(); ED.course.holes.push(newHole(ED.course.holes.length + 1, eh().size)); ED.hi = ED.course.holes.length - 1;
+    ED.sel = null; edCommit(); renderEdTop(); edRebuild();
+  }
+});
+overlay.addEventListener("input", e => {
+  if (e.target.id === "creatorName"){ save.creator = e.target.value.slice(0, 24); persist(); }
+  if (e.target.id === "comSearch"){ comSearch = e.target.value; refreshComList(); }
+});
+
+// ---- hub actions ----
+const findMap = id => save.maps.find(c => c.id === id);
+Object.assign(ACTIONS, {
+  hub:        () => showHub(),
+  hubTab:     d => { hubTab = d.t; showHub(); },
+  hubPlayers: d => { menuPlayers = +d.n; showHub(); },
+  prevPlayers:d => { menuPlayers = +d.n; if (pendingImport) showImportPreview(pendingImport); },
+  newMap:     () => { const c = newCourse(); save.maps.unshift(c); persist(); openEditor(c); },
+  editMap:    d => { const c = findMap(d.id); if (c) openEditor(c); },
+  playMap:    d => { const c = findMap(d.id); if (c) playCourse(c, c.holes.map((_, i) => i), menuPlayers); },
+  shareMap:   d => { const c = findMap(d.id); if (c) showShare(c); },
+  publishMap: d => { const c = findMap(d.id); if (c) publishCourse(c); },
+  deleteMap:  (d, b) => {
+    if (b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Delete?"; b.classList.remove("ghost"); return; }
+    save.maps = save.maps.filter(c => c.id !== d.id); persist(); showHub();
+  },
+  importMap:  () => showImport(),
+  importGo:   async () => {
+    try { const c = await decodeCourse($("importText").value); showImportPreview(c, "imported"); }
+    catch(e){ toast(e.message || "Couldn't read that code"); }
+  },
+  importPlay: () => {
+    if (!pendingImport) return;
+    if (pendingImportPub && community()){ community().play(pendingImportPub).catch(() => {}); }
+    const extra = pendingImportPub ? { pubId:pendingImportPub } : {};
+    pendingImportPub = null;
+    playCourse(pendingImport, pendingImport.holes.map((_, i) => i), menuPlayers, extra);
+  },
+  importSave: () => { if (!pendingImport) return; save.maps.unshift(pendingImport); persist(); pendingImport = null; hubTab = "mine"; toast("Saved to My maps"); showHub(); },
+  copyShare:  async () => { const t = $("shareText"); if (!(await copyText(t.value))){ t.select(); toast("Press Ctrl+C to copy"); } },
+  copyPub:    d => copyText(pubUrl(d.id)),
+  comSort:    d => { comSort = d.k; comItems = null; showHub(); },
+  comRefresh: () => { comItems = null; comErr = null; showHub(); },
+  comPlay:    d => playCommunity(d.id),
+  comLink:    d => copyText(pubUrl(d.id)),
+  comLike:    async (d, b) => {
+    const com = community(); if (!com || save.liked[d.id]) return;
+    b.disabled = true; b.textContent = "❤️";
+    try { await com.like(d.id); save.liked[d.id] = true; persist(); const m = (comItems || []).find(x => x.id === d.id); if (m) m.likes = (+m.likes || 0) + 1; refreshComList(); }
+    catch(e){ save.liked[d.id] = true; persist(); refreshComList(); }
+  },
+  comRemix:   async d => {
+    try { const { c } = await fetchComCourse(d.id); c.name = (c.name + " (remix)").slice(0, 40); save.maps.unshift(c); persist(); hubTab = "mine"; toast("Copied to My maps ✓"); showHub(); }
+    catch(e){ toast("Couldn't load map: " + (e.message || e)); }
+  },
+  comUnpublish: async (d, b) => {
+    if (b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Remove?"; b.classList.remove("ghost"); return; }
+    try { await community().remove(d.id); save.maps.forEach(c => { if (c.pubId === d.id) delete c.pubId; }); persist(); comItems = null; toast("Removed from Community"); showHub(); }
+    catch(e){ toast("Couldn't remove: " + (e.message || e)); }
+  },
+  edit:       () => backToEditor(),
+  themeDone:  () => { hideOverlay(); edCommit(); },
+});
+
+// ---- open shared links on page load ----
+async function handleHash(){
+  const hsh = location.hash;
+  if (!hsh) return;
+  const clear = () => history.replaceState(null, "", location.pathname + location.search);
+  const m = hsh.match(/^#map=([A-Za-z0-9_-]+)/), p = hsh.match(/^#pub=([A-Za-z0-9_-]{1,40})/);
+  if (m){
+    clear();
+    try { showImportPreview(await decodeCourse(m[1]), "shared link"); }
+    catch(e){ toast("That map link is broken or incomplete."); }
+  } else if (p){
+    clear();
+    const com = community();
+    if (!com){ toast("Community maps aren't set up on this site."); return; }
+    try { const { c } = await fetchComCourse(p[1]); pendingImportPub = p[1]; showImportPreview(c, "Community"); }
+    catch(e){ toast("Couldn't load that map: " + (e.message || e)); }
+  }
+}
+let pendingImportPub = null;
+window.addEventListener("hashchange", handleHash);
 
 // =====================================================================
 //  Input
@@ -1535,24 +2701,29 @@ function toLogical(e){
   return { x:(e.clientX - r.left) / r.width * W, y:(e.clientY - r.top) / r.height * H };
 }
 canvas.addEventListener("pointerdown", e => {
+  if (ED && state === "editing"){ canvas.setPointerCapture(e.pointerId); edPointerDown(toLogical(e), e); return; }
   if (state !== "aim" || demo) return;
   const p = toLogical(e);
   drag = { sx:p.x, sy:p.y, x:p.x, y:p.y };
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener("pointermove", e => {
+  if (ED && state === "editing"){ edPointerMove(toLogical(e), e); return; }
   if (!drag) return;
   const p = toLogical(e); drag.x = p.x; drag.y = p.y;
 });
 canvas.addEventListener("pointerup", () => {
+  if (ED && state === "editing"){ edPointerUp(); return; }
   if (!drag) return;
   const dx = drag.sx - drag.x, dy = drag.sy - drag.y, d = Math.hypot(dx, dy);
   drag = null;
   if (state !== "aim" || d < 6) return;
   shoot(Math.min(d, MAX_DRAG) / MAX_DRAG, dx/d, dy/d);
 });
-canvas.addEventListener("pointercancel", () => drag = null);
+canvas.addEventListener("pointercancel", () => { drag = null; if (ED && state === "editing") edPointerUp(); });
+canvas.addEventListener("pointerleave", () => { if (ED) ED.hover = null; });
 window.addEventListener("keydown", e => {
+  if (ED && state === "editing"){ if (edKey(e)) e.preventDefault(); return; }
   if (e.key === "Escape"){ if (drag) drag = null; else showPause(); }
   if (e.key === "m" || e.key === "M"){ save.muted = !save.muted; persist(); updateHUD(); }
 });
@@ -1561,15 +2732,19 @@ window.addEventListener("keydown", e => {
 //  Sizing & loop
 // =====================================================================
 function resize(){
-  const hud = $("hud");
-  const availW = window.innerWidth - 16;
-  hud.style.width = Math.min(availW, W*2) + "px";
-  const hudH = hud.getBoundingClientRect().height;
-  const availH = window.innerHeight - hudH - 32;
+  const hud = $("hud"), editing = document.body.classList.contains("editing");
+  const narrow = window.innerWidth <= 760;
+  let availW = window.innerWidth - 16, extraH = 0;
+  if (editing){
+    if (narrow) extraH = $("edTools").getBoundingClientRect().height + 8 + window.innerHeight*0.30;
+    else availW -= $("edTools").getBoundingClientRect().width + $("edPanel").getBoundingClientRect().width + 20;
+  } else hud.style.width = Math.min(availW, W*2) + "px";
+  const hudH = (editing ? $("edTop") : hud).getBoundingClientRect().height;
+  const availH = window.innerHeight - hudH - 32 - extraH;
   const s = Math.max(0.2, Math.min(availW / W, availH / H));
   const cssW = Math.floor(W*s), cssH = Math.floor(H*s);
   const dpr = window.devicePixelRatio || 1;
-  hud.style.width = cssW + "px";
+  if (!editing) hud.style.width = cssW + "px";
   wrap.style.width = cssW + "px"; wrap.style.height = cssH + "px";
   canvas.style.width = cssW + "px"; canvas.style.height = cssH + "px";
   canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
@@ -1585,6 +2760,7 @@ function frame(now){
     acc -= DT;
   }
   draw();
+  if (ED && state === "editing") drawEditor();
   requestAnimationFrame(frame);
 }
 
@@ -1592,6 +2768,7 @@ resize();
 updateHUD();
 showMenu();
 resize();
+handleHash();
 requestAnimationFrame(frame);
 
 // Small hook for automated tests.
@@ -1599,6 +2776,7 @@ window.__tt = {
   get state(){ return state; }, get ball(){ return ball; }, get strokes(){ return strokes; },
   get round(){ return round; }, get level(){ return levelIdx; }, get levelObj(){ return level; }, save, WORLDS,
   shoot, step, startRound, physicsFrame, set demo(v){ demo = v; },
+  get ED(){ return ED; }, openEditor, newCourse, encodeCourse, decodeCourse, sanitizeCourse, playCourse, showHub,
 };
 })();
 </script>
