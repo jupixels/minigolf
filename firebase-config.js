@@ -7,7 +7,7 @@
 // These values are safe to publish on GitHub: a Firebase web config only says
 // which project to talk to. Access is controlled by firestore.rules.
 
-const firebaseConfig = {
+window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyC-bVB6DvjKbJ2R5eiauXscIwiOniJFR4M",
   authDomain: "minigolfgame-e7ea1.firebaseapp.com",
   projectId: "minigolfgame-e7ea1",

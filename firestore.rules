@@ -8,13 +8,15 @@ rules_version = '2';
 //   • Signed-in players (anonymous sign-in) can publish maps under their own id.
 //   • Only the publisher can update or delete their map.
 //   • Anyone can add exactly +1 play, and +1 like once per player.
+//   • Hole records: each player keeps one score per hole, which can only improve.
+//     Republishing a map bumps its version, which starts fresh records.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function validMap(d) {
       return d.keys().hasAll(['name', 'author', 'uid', 'data', 'holes', 'likes', 'plays', 'createdAt', 'updatedAt'])
         && d.keys().hasOnly(['name', 'nameLower', 'emoji', 'author', 'uid', 'data', 'holes', 'theme',
-                             'likes', 'plays', 'createdAt', 'updatedAt'])
+                             'likes', 'plays', 'version', 'createdAt', 'updatedAt'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 40
         && d.author is string && d.author.size() <= 24
         && d.data is string && d.data.size() < 200000
@@ -30,6 +32,7 @@ service cloud.firestore {
         && validMap(request.resource.data)
         && request.resource.data.likes == 0
         && request.resource.data.plays == 0
+        && request.resource.data.get('version', 0) == 0
         && request.resource.data.createdAt == request.time;
 
       allow update: if request.auth != null && (
@@ -39,6 +42,7 @@ service cloud.firestore {
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.likes == resource.data.likes
           && request.resource.data.plays == resource.data.plays
+          && request.resource.data.get('version', 0) == resource.data.get('version', 0) + 1
           && validMap(request.resource.data))
         ||
         // Anyone: one more play.
@@ -57,6 +61,25 @@ service cloud.firestore {
       match /likes/{userId} {
         allow read: if true;
         allow create: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Hole records. Document id: "<version>_<hole>_<uid>".
+      match /scores/{scoreId} {
+        allow read: if true;
+        allow create, update: if request.auth != null
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'hole', 'strokes', 'version', 'at'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.hole is int && request.resource.data.version is int
+          && scoreId == string(request.resource.data.version) + '_' + string(request.resource.data.hole) + '_' + request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24
+          && request.resource.data.hole >= 0
+          && request.resource.data.hole < get(/databases/$(database)/documents/maps/$(mapId)).data.holes
+          && request.resource.data.version == get(/databases/$(database)/documents/maps/$(mapId)).data.get('version', 0)
+          && request.resource.data.strokes is int
+          && request.resource.data.strokes >= 1 && request.resource.data.strokes <= 10
+          && request.resource.data.at == request.time
+          && (resource == null || request.resource.data.strokes < resource.data.strokes);
       }
     }
   }

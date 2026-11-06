@@ -9,7 +9,7 @@ const alice = env.authenticatedContext("alice").firestore();
 const bob = env.authenticatedContext("bob").firestore();
 const anon = env.unauthenticatedContext().firestore();
 const base = (uid) => ({ name:"Test", nameLower:"test", emoji:"⛳", author:"Alice", uid, holes:2, theme:{fair:"#4caf50"},
-  data:JSON.stringify({holes:[]}), likes:0, plays:0, createdAt:FV.serverTimestamp(), updatedAt:FV.serverTimestamp() });
+  data:JSON.stringify({holes:[]}), likes:0, plays:0, version:0, createdAt:FV.serverTimestamp(), updatedAt:FV.serverTimestamp() });
 let pass = 0, fail = 0;
 async function t(name, p){ try { await p; pass++; console.log("  ✓", name); } catch(e){ fail++; console.log("  ✗", name, "-", e.message.split("\n")[0]); } }
 
@@ -26,7 +26,27 @@ console.log("read");
 await t("anyone can read", assertSucceeds(anon.collection("maps").doc("m1").get()));
 await t("anyone can list", assertSucceeds(anon.collection("maps").orderBy("likes","desc").limit(10).get()));
 console.log("update");
-await t("alice edits her map", assertSucceeds(alice.collection("maps").doc("m1").update({ name:"Renamed", updatedAt:FV.serverTimestamp() })));
+await t("can't start at a later version", assertFails(alice.collection("maps").doc("m9").set({ ...base("alice"), version:5 })));
+console.log("records (version 0)");
+const sc = (db, uid, ver, hole, strokes, extra = {}) => db.collection("maps").doc("m1").collection("scores").doc(`${ver}_${hole}_${uid}`)
+  .set({ uid, name:uid, hole, strokes, version:ver, at:FV.serverTimestamp(), ...extra });
+await t("bob sets a record on hole 0", assertSucceeds(sc(bob, "bob", 0, 0, 4)));
+await t("bob improves it to 2", assertSucceeds(sc(bob, "bob", 0, 0, 2)));
+await t("bob can't make it worse", assertFails(sc(bob, "bob", 0, 0, 3)));
+await t("bob can't tie his own score", assertFails(sc(bob, "bob", 0, 0, 2)));
+await t("bob can't post as carol", assertFails(sc(bob, "carol", 0, 0, 1)));
+await t("can't post 0 strokes", assertFails(sc(bob, "bob", 0, 1, 0)));
+await t("can't post for a hole that doesn't exist", assertFails(sc(bob, "bob", 0, 5, 2)));
+await t("can't post to a future version", assertFails(sc(bob, "bob", 1, 0, 1)));
+await t("can't add extra fields", assertFails(sc(bob, "bob", 0, 1, 2, { cheat:true })));
+await t("signed-out can't post", assertFails(sc(anon, "bob", 0, 1, 2)));
+await t("anyone can read records", assertSucceeds(anon.collection("maps").doc("m1").collection("scores").where("version", "==", 0).get()));
+console.log("update");
+await t("alice edit without bumping version is rejected", assertFails(alice.collection("maps").doc("m1").update({ name:"Renamed", updatedAt:FV.serverTimestamp() })));
+await t("alice can't jump 2 versions", assertFails(alice.collection("maps").doc("m1").update({ name:"Renamed", version:FV.increment(2), updatedAt:FV.serverTimestamp() })));
+await t("alice edits her map (version +1)", assertSucceeds(alice.collection("maps").doc("m1").update({ name:"Renamed", version:FV.increment(1), updatedAt:FV.serverTimestamp() })));
+await t("old-version score now rejected", assertFails(sc(bob, "bob", 0, 1, 2)));
+await t("new-version score accepted", assertSucceeds(sc(bob, "bob", 1, 0, 3)));
 await t("bob can't edit alice's map", assertFails(bob.collection("maps").doc("m1").update({ name:"Hacked" })));
 await t("alice can't bump her own likes", assertFails(alice.collection("maps").doc("m1").update({ likes:50 })));
 await t("alice can't give away ownership", assertFails(alice.collection("maps").doc("m1").update({ uid:"bob" })));

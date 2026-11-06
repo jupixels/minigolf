@@ -35,11 +35,22 @@ function mockBackend(){
     async get(id){ const v = load()[id]; return wait(v ? { id, ...v } : null); },
     async publish(p){
       const d = load(), id = Math.random().toString(36).slice(2, 12);
-      d[id] = { ...p, uid, likes:0, plays:0, createdAt:Date.now(), updatedAt:Date.now() }; saveAll(d); return wait(id);
+      d[id] = { ...p, uid, likes:0, plays:0, version:0, createdAt:Date.now(), updatedAt:Date.now() }; saveAll(d); return wait(id);
     },
     async update(id, p){
       const d = load(); if (!d[id] || d[id].uid !== uid) throw new Error("Not allowed");
-      d[id] = { ...d[id], ...p, updatedAt:Date.now() }; saveAll(d); return wait();
+      d[id] = { ...d[id], ...p, version:(d[id].version || 0) + 1, updatedAt:Date.now() }; saveAll(d); return wait();
+    },
+    async scores(id, version){
+      const all = (load()[id] || {}).scores || {};
+      return wait(Object.values(all).filter(x => x.version === version));
+    },
+    async submitScore(id, version, hole, strokes, name, asUid = uid){
+      const d = load(), m = d[id]; if (!m || (m.version || 0) !== version) throw new Error("Map changed");
+      m.scores = m.scores || {};
+      const key = `${version}_${hole}_${asUid}`, cur = m.scores[key];
+      if (cur && cur.strokes <= strokes) return wait(false);
+      m.scores[key] = { uid:asUid, name, hole, strokes, version, at:Date.now() }; saveAll(d); return wait(true);
     },
     async remove(id){ const d = load(); if (d[id] && d[id].uid !== uid) throw new Error("Not allowed"); delete d[id]; saveAll(d); return wait(); },
     async like(id){ const d = load(); if (d[id]){ d[id].likes = (d[id].likes || 0) + 1; saveAll(d); } return wait(); },
@@ -62,6 +73,7 @@ async function firebaseBackend(){
   if (!auth.currentUser) await A.signInAnonymously(auth);
   const uid = auth.currentUser.uid;
   const maps = F.collection(db, "maps");
+  let legacyRules = false;
   const ms = v => (v && typeof v.toMillis === "function") ? v.toMillis() : 0;
   const toItem = d => { const v = d.data(); return { id:d.id, ...v, createdAt:ms(v.createdAt), updatedAt:ms(v.updatedAt) }; };
 
@@ -77,11 +89,35 @@ async function firebaseBackend(){
       return d.exists() ? toItem(d) : null;
     },
     async publish(p){
-      const ref = await F.addDoc(maps, { ...p, uid, likes:0, plays:0, createdAt:F.serverTimestamp(), updatedAt:F.serverTimestamp() });
-      return ref.id;
+      const doc = { ...p, uid, likes:0, plays:0, version:0, createdAt:F.serverTimestamp(), updatedAt:F.serverTimestamp() };
+      try { return (await F.addDoc(maps, doc)).id; }
+      catch (e){
+        if (e.code !== "permission-denied") throw e;
+        // Older rules (before records) don't know the version field.
+        delete doc.version; legacyRules = true;
+        return (await F.addDoc(maps, doc)).id;
+      }
     },
     async update(id, p){
-      await F.updateDoc(F.doc(db, "maps", id), { ...p, updatedAt:F.serverTimestamp() });
+      // Every update bumps the version, which resets that map's hole records.
+      try { await F.updateDoc(F.doc(db, "maps", id), { ...p, version:F.increment(1), updatedAt:F.serverTimestamp() }); }
+      catch (e){
+        if (e.code !== "permission-denied") throw e;
+        await F.updateDoc(F.doc(db, "maps", id), { ...p, updatedAt:F.serverTimestamp() });
+        legacyRules = true;
+      }
+    },
+    // Hole records: one entry per player per hole per map version.
+    async scores(id, version){
+      const snap = await F.getDocs(F.query(F.collection(db, "maps", id, "scores"), F.where("version", "==", version), F.limit(1000)));
+      return snap.docs.map(d => { const v = d.data(); return { uid:v.uid, name:v.name, hole:v.hole, strokes:v.strokes, version:v.version, at:ms(v.at) || Date.now() }; });
+    },
+    async submitScore(id, version, hole, strokes, name){
+      const ref = F.doc(db, "maps", id, "scores", `${version}_${hole}_${uid}`);
+      const cur = await F.getDoc(ref);
+      if (cur.exists() && cur.data().strokes <= strokes) return false;
+      await F.setDoc(ref, { uid, name, hole, strokes, version, at:F.serverTimestamp() });
+      return true;
     },
     async remove(id){
       await F.deleteDoc(F.doc(db, "maps", id));

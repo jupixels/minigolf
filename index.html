@@ -158,6 +158,17 @@
   .keys kbd { background:rgba(255,255,255,.14); border-radius:5px; padding:0 5px; font-family:inherit; }
   #toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%, 20px); background:rgba(10,20,15,.92); color:#fff; padding:10px 16px; border-radius:12px; opacity:0; transition:.25s; pointer-events:none; z-index:20; font-weight:500; border:1px solid var(--line); max-width:90vw; text-align:center; }
   #toast.show { opacity:1; transform:translate(-50%, 0); }
+  /* ---------- Records ---------- */
+  .records { background:rgba(0,0,0,.2); border-radius:14px; padding:6px 12px 8px; margin:8px auto; max-width:340px; }
+  .records .sub { margin:4px 0; }
+  .rec { display:grid; grid-template-columns:26px 1fr auto; gap:6px; align-items:center; padding:3px 6px; border-radius:8px; text-align:left; }
+  .rec.me, .lt .me { background:rgba(255,211,78,.18); box-shadow:inset 0 0 0 1px var(--accent); }
+  .recmsg { margin-top:6px; color:var(--accent); font-weight:600; }
+  .lboard { display:flex; flex-direction:column; gap:6px; max-height:52vh; overflow:auto; margin:10px 0; text-align:left; }
+  .lrow { display:grid; grid-template-columns:minmax(140px, 1fr) 2fr; gap:10px; align-items:center; background:rgba(255,255,255,.06); border-radius:12px; padding:8px 12px; }
+  .lh b { color:var(--accent); margin-right:4px; } .lh small { color:var(--dim); }
+  .lt { display:flex; gap:6px; flex-wrap:wrap; } .lt span { padding:3px 8px; border-radius:8px; background:rgba(0,0,0,.2); font-size:14px; }
+  @media (max-width:560px){ .lrow { grid-template-columns:1fr; } }
   /* ---------- Custom maps hub ---------- */
   .card.wide { min-width:min(700px, 94vw); }
   .hubbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; margin:8px 0; }
@@ -857,6 +868,7 @@ function startRound(world, holes, nPlayers, practice, course, extra = {}){
   };
   hideOverlay();
   startTurn(true);
+  if (round.pubId) loadRoundRecords();
 }
 
 function startTurn(newHole){
@@ -867,6 +879,7 @@ function startTurn(newHole){
   if (level.tip && newHole) floaters.push({ x:W/2, y:H-20, text:level.tip, life:4.5, max:4.5, size:16, color:"#fff" });
   state = "aim";
   updateHUD();
+  if (round.pubId) announceRecord();
 }
 
 function endTurn(maxed){
@@ -883,6 +896,8 @@ function endTurn(maxed){
     if (strokes === 1) shake = 8;
   }
   floaters.push({ x:W/2, y:H/2, text:name, life:1.6, max:1.6, size:52, color:strokes <= level.par && !maxed ? "#ffd34e" : "#ffffff", rise:0.3 });
+  round.placeMsg = "";
+  if (round.pubId && !maxed) recordScore();
   updateHUD();
   const my = ++token;
   setTimeout(() => {
@@ -1589,6 +1604,7 @@ function showHoleCard(){
   showOverlay(`
     <h2>Hole ${round.hi+1} · ${esc(level.name)}</h2>
     <div class="results">${results}</div>
+    ${round.pubId ? recordsBlock(levelIdx) : ""}
     ${scorecardHTML()}
     <div class="row"><button data-act="next">Next hole →</button></div>
     <div class="hint">Up next: ${esc(LEVELS[round.holes[round.hi+1]].name)}</div>`);
@@ -1618,6 +1634,7 @@ function showFinal(){
       r.diff === 0 ? "Right on par. Solid round! 👏" : r.diff <= 6 ? "Not bad! Go again?" : "The course won this time 😅";
     showOverlay(`<h1 class="logo" style="font-size:44px">Round complete!</h1>
       <h2 style="margin-top:8px">${label}</h2><p>${verdict}</p>${extra}${unlockHTML}
+      ${round.pubId ? recordsBlock(levelIdx, `Hole ${round.hi+1} records`) + `<div class="row" style="margin-top:4px"><button class="ghost" data-act="comRecords" data-id="${esc(round.pubId)}">🏆 Full leaderboard</button></div>` : ""}
       ${scorecardHTML()}
       <div class="row"><button data-act="again">Play again</button><button class="ghost" data-act="menu">${round.custom ? "Custom maps" : "Menu"}</button></div>`);
   } else {
@@ -1677,8 +1694,8 @@ const ACTIONS = {
   },
 };
 function roundExtras(){
-  const { custom, test, courseRef, editHole, pubId } = round;
-  return { custom, test, courseRef, editHole, pubId };
+  const { custom, test, courseRef, editHole, pubId, pubVersion } = round;
+  return { custom, test, courseRef, editHole, pubId, pubVersion };
 }
 function showHoleCardOrNextTurn(){
   if (round.pi < round.players.length - 1 && round.players[round.pi].scores[round.hi] != null){ round.pi++; startTurn(false); }
@@ -1759,6 +1776,7 @@ function sanitizeCourse(c){
     holes:holes.length ? holes : [newHole(1)],
     created:+c.created || Date.now(), updated:+c.updated || Date.now(),
     ...(typeof c.pubId === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(c.pubId) ? { pubId:c.pubId } : {}),
+    ...(typeof c.pubHash === "string" && /^[a-z0-9]{1,16}$/.test(c.pubHash) ? { pubHash:c.pubHash } : {}),
   };
 }
 const stripCourse = c => ({ name:c.name, emoji:c.emoji, author:c.author, theme:c.theme, holes:c.holes });
@@ -2458,6 +2476,7 @@ function comListHTML(){
       <div class="mbtns">
         <button data-act="comPlay" data-id="${esc(m.id)}">▶ Play</button>
         <button class="ghost" data-act="comLike" data-id="${esc(m.id)}" ${liked || mine ? "disabled" : ""} title="${mine ? "Can't like your own map" : liked ? "Liked" : "Like"}">${liked ? "❤️" : "🤍"}</button>
+        <button class="ghost" data-act="comRecords" data-id="${esc(m.id)}" title="Hole records">🏆</button>
         <button class="ghost" data-act="comRemix" data-id="${esc(m.id)}" title="Copy into My maps to edit">⤵ Remix</button>
         <button class="ghost" data-act="comLink" data-id="${esc(m.id)}" title="Copy link">🔗</button>
         ${mine ? `<button class="ghost" data-act="comUnpublish" data-id="${esc(m.id)}" title="Remove from Community">🗑</button>` : ""}
@@ -2491,10 +2510,97 @@ async function fetchComCourse(id){
 const playedThisSession = new Set();
 async function playCommunity(id){
   try {
-    const { c } = await fetchComCourse(id);
+    const { m, c } = await fetchComCourse(id);
     if (!playedThisSession.has(id)){ playedThisSession.add(id); community().play(id).catch(() => {}); }
-    playCourse(c, c.holes.map((_, i) => i), menuPlayers, { pubId:id });
+    playCourse(c, c.holes.map((_, i) => i), menuPlayers, { pubId:id, pubVersion:+m.version || 0 });
   } catch(e){ toast("Couldn't load map: " + (e.message || e)); }
+}
+
+// ---- hole records (community maps) ----
+const MEDALS = ["🥇", "🥈", "🥉"];
+const strHash = str => { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0; return h.toString(36); };
+const playerName = () => (save.creator || "").trim().slice(0, 24) || "Anonymous golfer";
+function groupRecords(list){
+  const by = {};
+  list.forEach(x => { if (Number.isInteger(x.hole) && Number.isInteger(x.strokes)) (by[x.hole] = by[x.hole] || []).push(x); });
+  Object.values(by).forEach(a => a.sort((p, q) => p.strokes - q.strokes || p.at - q.at));
+  return by;
+}
+async function loadRoundRecords(){
+  const r = round, com = community(); if (!r || !r.pubId || !com) return;
+  try {
+    await com.ready;
+    const list = await com.scores(r.pubId, r.pubVersion || 0);
+    if (round !== r) return;
+    // keep any score we just set optimistically
+    const mine = r.records ? Object.values(r.records).flat().filter(x => x.local) : [];
+    r.records = groupRecords([...list.filter(x => !mine.some(m => m.uid === x.uid && m.hole === x.hole && m.strokes <= x.strokes)), ...mine]);
+    r.recordsOk = true;
+    announceRecord();
+  } catch(e){ r.recordsOk = false; }
+}
+function announceRecord(){
+  if (!round || !round.records || state !== "aim" || strokes || round.announced === round.hi + "-" + round.pi) return;
+  round.announced = round.hi + "-" + round.pi;
+  const top = (round.records[levelIdx] || [])[0];
+  const text = top ? `🏆 Record: ${top.strokes} stroke${top.strokes === 1 ? "" : "s"} by ${top.name}` : "🏆 No record on this hole yet. Set the first one!";
+  floaters.push({ x:W/2, y:21, text, life:4.5, max:4.5, size:15, color:"#ffd34e" });
+}
+function recordScore(){
+  if (round.players.length !== 1 || round.practice){ round.placeMsg = round.players.length > 1 ? "Hole records only count in solo play." : ""; return; }
+  const com = community(); if (!com || !com.uid) return;
+  const r = round, hole = levelIdx, s = strokes, name = playerName();
+  r.records = r.records || {};
+  const list = r.records[hole] = (r.records[hole] || []).slice();
+  const old = list.find(x => x.uid === com.uid);
+  if (old && old.strokes <= s){ r.placeMsg = `Your best here is still ${old.strokes}.`; return; }
+  const before = list.slice(0, 3).map(x => x.uid);
+  if (old) list.splice(list.indexOf(old), 1);
+  list.push({ uid:com.uid, name, hole, strokes:s, at:Date.now(), local:true });
+  list.sort((p, q) => p.strokes - q.strokes || p.at - q.at);
+  const place = list.findIndex(x => x.uid === com.uid);
+  if (place === 0 && before[0] !== com.uid){ r.placeMsg = "🥇 New hole record!"; sfx.unlock(); }
+  else if (place < 3) r.placeMsg = `${MEDALS[place]} You're ${["1st","2nd","3rd"][place]} on this hole!`;
+  else r.placeMsg = "Personal best on this hole ✓";
+  if (place < 3) floaters.push({ x:W/2, y:H/2 + 46, text:r.placeMsg, life:2, max:2, size:22, color:"#ffd34e", rise:0.2 });
+  com.submitScore(r.pubId, r.pubVersion || 0, hole, s, name).catch(e => {
+    console.warn("[Tiny Tees] Couldn't save record:", e);
+    if (round === r){ r.placeMsg = "Couldn't save your record (the map may have just been updated)."; const el = document.getElementById("recMsg"); if (el) el.textContent = r.placeMsg; }
+  });
+}
+function recordsBlock(hole, title = "🏆 Hole records"){
+  const com = community(), me = com && com.uid;
+  let inner;
+  if (!round.records) inner = round.recordsOk === false ? `<div class="muted">Couldn't load records.</div>` : `<div class="muted">Loading records…</div>`;
+  else {
+    const top = (round.records[hole] || []).slice(0, 3);
+    inner = top.length ? top.map((x, i) => `<div class="rec ${x.uid === me ? "me" : ""}"><span>${MEDALS[i]}</span><b>${esc(x.name)}</b><span>${x.strokes} stroke${x.strokes === 1 ? "" : "s"}</span></div>`).join("")
+      : `<div class="muted">No records yet</div>`;
+  }
+  return `<div class="records"><div class="sub">${title.startsWith("🏆") ? title : "🏆 " + title}</div>${inner}
+    ${round.placeMsg ? `<div class="recmsg" id="recMsg">${esc(round.placeMsg)}</div>` : `<div id="recMsg"></div>`}</div>`;
+}
+async function showRecords(id){
+  showOverlay(`<h2>🏆 Leaderboard</h2><div class="empty">Loading…</div>`);
+  try {
+    const com = community();
+    const { m, c } = await fetchComCourse(id);
+    const by = groupRecords(await com.scores(id, +m.version || 0));
+    const me = com.uid;
+    showOverlay(`<h2>🏆 ${c.emoji} ${esc(c.name)}</h2>
+      <div class="muted">by ${esc(m.author || "anonymous")} · top 3 on every hole · records reset when the creator updates the map</div>
+      <div class="lboard">${c.holes.map((h, i) => {
+        const top = (by[i] || []).slice(0, 3);
+        return `<div class="lrow"><div class="lh"><b>${i+1}</b> ${esc(h.name)} <small>par ${h.par}</small></div>
+          <div class="lt">${top.length ? top.map((x, k) => `<span class="${x.uid === me ? "me" : ""}">${MEDALS[k]} ${esc(x.name)} · ${x.strokes}</span>`).join("") : `<span class="muted">No records yet</span>`}</div></div>`;
+      }).join("")}</div>
+      ${save.creator.trim() ? "" : `<div class="hint">Your records show as “Anonymous golfer”. Set a creator name in My maps to use your own name.</div>`}
+      <div class="row"><button data-act="comPlay" data-id="${esc(id)}">▶ Play</button><button class="ghost" data-act="hub">← Back</button></div>`);
+    overlay.querySelector(".card").classList.add("wide");
+  } catch(e){
+    showOverlay(`<h2>🏆 Leaderboard</h2><div class="empty">Couldn't load records.<br><span class="muted">${esc(e.message || e)}</span></div>
+      <div class="row"><button class="ghost" data-act="hub">← Back</button></div>`);
+  }
 }
 
 function showImport(prefill = ""){
@@ -2545,6 +2651,8 @@ async function publishCourseInner(c, com){
     data:JSON.stringify(stripCourse(c)),
   };
   if (payload.data.length > 190000) return toast("This map is too big to publish");
+  const hash = strHash(payload.data + "|" + payload.name + "|" + payload.emoji + "|" + payload.author);
+  if (c.pubId && c.pubHash === hash) return toast("No changes since you last published it 👍");
   toast(c.pubId ? "Updating…" : "Publishing…");
   try {
     await com.ready;
@@ -2552,6 +2660,7 @@ async function publishCourseInner(c, com){
       try { await com.update(c.pubId, payload); }
       catch(e){ delete c.pubId; c.pubId = await com.publish(payload); }   // removed or not ours anymore → publish fresh
     } else c.pubId = await com.publish(payload);
+    c.pubHash = hash;
     persist(); comItems = null;
     toast(c.pubId ? "Published to Community 🌐" : "Done");
     showHub();
@@ -2629,7 +2738,16 @@ Object.assign(ACTIONS, {
   editMap:    d => { const c = findMap(d.id); if (c) openEditor(c); },
   playMap:    d => { const c = findMap(d.id); if (c) playCourse(c, c.holes.map((_, i) => i), menuPlayers); },
   shareMap:   d => { const c = findMap(d.id); if (c) showShare(c); },
-  publishMap: d => { const c = findMap(d.id); if (c) publishCourse(c); },
+  publishMap: (d, b) => {
+    const c = findMap(d.id); if (!c) return;
+    if (c.pubId && b.dataset.armed !== "1"){
+      const data = JSON.stringify(stripCourse(c));
+      const hash = strHash(data + "|" + c.name + "|" + c.emoji + "|" + (save.creator.trim().slice(0, 24)));
+      if (c.pubHash !== hash){ b.dataset.armed = "1"; b.textContent = "Update? Resets records"; b.classList.remove("ghost"); return; }
+    }
+    publishCourse(c);
+  },
+  comRecords: d => showRecords(d.id),
   deleteMap:  (d, b) => {
     if (b.dataset.armed !== "1"){ b.dataset.armed = "1"; b.textContent = "Delete?"; b.classList.remove("ghost"); return; }
     save.maps = save.maps.filter(c => c.id !== d.id); persist(); showHub();
@@ -2642,7 +2760,7 @@ Object.assign(ACTIONS, {
   importPlay: () => {
     if (!pendingImport) return;
     if (pendingImportPub && community()){ community().play(pendingImportPub).catch(() => {}); }
-    const extra = pendingImportPub ? { pubId:pendingImportPub } : {};
+    const extra = pendingImportPub ? { pubId:pendingImportPub, pubVersion:pendingImportVersion } : {};
     pendingImportPub = null;
     playCourse(pendingImport, pendingImport.holes.map((_, i) => i), menuPlayers, extra);
   },
@@ -2686,11 +2804,11 @@ async function handleHash(){
     clear();
     const com = community();
     if (!com){ toast("Community maps aren't set up on this site."); return; }
-    try { const { c } = await fetchComCourse(p[1]); pendingImportPub = p[1]; showImportPreview(c, "Community"); }
+    try { const { m, c } = await fetchComCourse(p[1]); pendingImportPub = p[1]; pendingImportVersion = +m.version || 0; showImportPreview(c, "Community"); }
     catch(e){ toast("Couldn't load that map: " + (e.message || e)); }
   }
 }
-let pendingImportPub = null;
+let pendingImportPub = null, pendingImportVersion = 0;
 window.addEventListener("hashchange", handleHash);
 
 // =====================================================================

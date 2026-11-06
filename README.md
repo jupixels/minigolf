@@ -71,6 +71,13 @@ Gems in custom maps sparkle when you collect them but don't add to your 💎 wal
 ### Community maps
 The Community tab lists maps that players have published. You can sort by 🆕 New, ❤️ Top or 🔥 Most played, search, like (once per player), play, and **Remix** (copy a map into My maps to edit). Publishers can remove their own maps.
 
+**🏆 Hole records.** Every Community map has a top-3 leaderboard for each hole:
+- The current record appears when a hole starts. After you sink a putt, the end-of-hole card shows the top 3 and any record you just set ("🥇 New hole record!", "🥈 You're 2nd on this hole!").
+- Tap 🏆 on any Community map to see the full leaderboard.
+- Records count in **solo** play, under your creator name. In hot-seat multiplayer everyone shares one device, so those scores aren't recorded.
+- Each player keeps their best score per hole. Ties go to whoever got there first.
+- **Records reset when the creator updates the map**, since an edited hole is a different challenge. Republishing a map that hasn't changed does nothing, and an update asks for confirmation first.
+
 Community maps use a free Google Firebase project. Until one is connected, the tab explains that it isn't set up yet, and everything else (including share links) works normally.
 
 ## Turning on Community maps (Firebase)
@@ -82,7 +89,7 @@ You only need to do this once. It takes about 10 minutes and uses Firebase's fre
 3. **Create the database.** Go to **Build → Firestore Database → Create database**, pick a location near your players, and start in **production mode**.
 4. **Add the security rules.** In Firestore, open the **Rules** tab, replace everything with the contents of [`firestore.rules`](firestore.rules), and click **Publish**.
 5. **Register the web app.** Go to **Project settings ⚙️ → General → Your apps**, click the **Web `</>`** icon, give the app a nickname, and click **Register app** (you don't need Firebase Hosting). Firebase then shows a `firebaseConfig` object.
-6. **Paste the config.** Open [`firebase-config.js`](firebase-config.js), replace `window.FIREBASE_CONFIG = null;` with your config, then commit and push:
+6. **Paste the config.** Open [`firebase-config.js`](firebase-config.js), replace `window.FIREBASE_CONFIG = null;` with your config, then commit and push. Keep the `window.FIREBASE_CONFIG =` part: Firebase's own snippet says `const firebaseConfig =`, and the game won't see it under that name.
    ```js
    window.FIREBASE_CONFIG = {
      apiKey: "…", authDomain: "…", projectId: "…",
@@ -99,6 +106,9 @@ Once GitHub Pages redeploys, the Community tab is live.
 - A player can only publish under their own ID. Names, sizes and hole counts are validated, and a new map always starts at 0 likes and 0 plays.
 - Only the publisher can edit or delete a map.
 - Anyone can add exactly +1 play, or +1 like once per player. Nobody can inflate the counters.
+- A hole record can only be posted under your own ID, for a hole that exists on the map's current version, with 1–10 strokes. It can only replace your own score with a better one.
+
+If you change `firestore.rules`, paste the new version into **Firestore → Rules** and click **Publish** again. The live site uses the rules in the console, not the file in this repo.
 
 ## Running locally
 
