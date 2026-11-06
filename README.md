@@ -51,7 +51,7 @@ Open **🛠️ Custom maps** from the main menu.
 
 ### My maps
 - **＋ New map** opens the editor. Maps save automatically in your browser.
-- **▶ Play** a map solo or with 2–4 players. **✏️ Edit** reopens it in the editor.
+- **▶ Play** a map solo or with 2–4 players. While playing, the **↻** button in the top bar restarts the current hole, and the pause menu (☰) has **Restart hole** and **Restart course**. **✏️ Edit** reopens the map in the editor.
 - **🔗 Share** makes a link with the whole map packed into it. Anyone who opens the link can play the map or save a copy, and no server is needed.
 - **📥 Import code** loads a map from a link or code someone sent you.
 - **🌐 Publish** puts the map in the Community gallery, if Community maps are turned on. Publishing again updates it.

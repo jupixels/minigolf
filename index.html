@@ -207,6 +207,7 @@
     <div id="players"></div>
     <div class="right">
       <span class="gems" id="hGems">💎 0</span>
+      <button class="ghost icon" id="btnRestart" title="Restart hole" style="display:none">↻</button>
       <button class="ghost icon" id="btnMute" title="Mute (M)">🔊</button>
       <button class="ghost icon" id="btnPause" title="Menu (Esc)">☰</button>
     </div>
@@ -1468,6 +1469,7 @@ function playerTotal(p){
 function updateHUD(){
   $("hGems").textContent = `💎 ${save.gems}`;
   $("btnMute").textContent = save.muted ? "🔇" : "🔊";
+  $("btnRestart").style.display = round && round.custom && !round.practice && !demo ? "" : "none";
   if (demo || !round){
     $("hHole").textContent = "⛳ TINY TEES"; $("hName").textContent = ""; $("hPar").textContent = "";
     $("players").innerHTML = "";
@@ -1651,13 +1653,15 @@ function showFinal(){
 
 function showPause(){
   if (!round || demo || !overlay.classList.contains("hidden")) return;
-  const prev = state; state = "paused"; drag = null; token++;
+  const prev = state; state = "paused"; drag = null; token++; pausedFrom = prev;
   showOverlay(`
     <h2>Paused</h2>
     ${scorecardHTML()}
     <div class="row">
       <button data-act="resume" data-prev="${prev}">▶ Resume</button>
       ${round.practice ? `<button class="ghost" data-act="retry">↻ Restart hole</button>` : ""}
+      ${round.custom && !round.practice && ["aim", "rolling"].includes(prev) ? `<button class="ghost" data-act="restartHole">↻ Restart hole</button>` : ""}
+      ${round.custom && !round.practice ? `<button class="ghost" data-act="again">⟲ Restart course</button>` : ""}
       ${round.test ? `<button class="ghost" data-act="edit">✏️ Back to editor</button>` : ""}
       <button class="ghost" data-act="menu">${round.custom ? "Quit to Custom maps" : "Quit to menu"}</button>
     </div>
@@ -1711,6 +1715,22 @@ overlay.addEventListener("click", e => {
 
 $("btnPause").onclick = () => { if (round && !demo) showPause(); else if (overlay.classList.contains("hidden")) showMenu(); };
 $("btnMute").onclick = () => { save.muted = !save.muted; persist(); updateHUD(); };
+$("btnRestart").onclick = () => restartHole();
+
+// Restart the current player's attempt at this hole (custom maps).
+let pausedFrom = null;
+function canRestart(){
+  if (!round || !round.custom || round.practice || demo) return false;
+  return ["aim", "rolling"].includes(state === "paused" ? pausedFrom : state);
+}
+function restartHole(){
+  if (!canRestart()) return;
+  token++; drag = null;
+  hideOverlay();
+  particles = []; rings = []; floaters = [];
+  startTurn(false);
+  toast("Hole restarted");
+}
 
 // =====================================================================
 //  Custom maps — data, sanitizing, sharing
@@ -2787,6 +2807,7 @@ Object.assign(ACTIONS, {
     catch(e){ toast("Couldn't remove: " + (e.message || e)); }
   },
   edit:       () => backToEditor(),
+  restartHole:() => restartHole(),
   themeDone:  () => { hideOverlay(); edCommit(); },
 });
 
