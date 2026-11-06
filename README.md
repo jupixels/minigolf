@@ -1,17 +1,27 @@
 # ⛳ Tiny Tees — Mini Golf
 
-A 12-hole mini golf game that runs in the browser. It's a single HTML file with no build step, and it works with a mouse or a touchscreen.
+A mini golf game with 30 holes across 3 worlds that runs in the browser. It's a single HTML file with no build step, and it works with a mouse or a touchscreen.
 
 **Play it:** https://jupixels.github.io/minigolf/
 
+## Worlds
+
+| World | Holes | How to unlock | What's in it |
+|---|---|---|---|
+| 🌳 Greenfield Park | 12 | Open from the start | Boost pads, portals, hills, ice, sand, water, windmill |
+| 🌵 Dusty Canyon | 9 | Finish the **full** Greenfield Park course | Conveyor belts, cactus bumpers, quicksand, mesas, a dust-devil spinner |
+| 🪐 Neon Nebula | 9 | Finish the **full** Dusty Canyon course | Gravity wells, repulsors, breakable crystals, black-hole voids, wormholes |
+
+A world unlocks when you finish its predecessor's full course, in solo or multiplayer. Your score doesn't matter. Unlocks are saved in your browser.
+
 ## Features
 
-- **12 holes** with boost pads, two-way portals, hills and dips, ice, sand, water, bumpers, a moving gate and a windmill
+- **3 worlds with 30 holes**, each with its own look and its own hazards
 - **Local multiplayer** for 1–4 players, taking turns on each hole, with a live scorecard and a winner's podium at the end
 - **Shot preview**: a dotted line shows the first part of your shot, including bounces
 - **Gems 💎** hidden on every hole. Spend them in the **Ball Shop** on new balls with special trails (fire, bubbles, sparkles, rainbow)
-- **Practice mode** to replay any hole, with your best score for each hole saved
-- Three course options: **Full 12**, **Front 6** and **Back 6**. Your best solo round on each is saved
+- **Practice mode** to replay any hole in any world you have unlocked, with your best score for each hole saved
+- In every world you can play the full course or just the front or back half. Your best solo round on each is saved
 - Hole intro banners, confetti, screen shake and synthesized sound effects (press **M** to mute)
 
 ## How to play
@@ -26,7 +36,11 @@ Drag back from anywhere on the course and let go to putt. The farther you pull, 
 | Hill / dip | Hills push the ball away, dips pull it in |
 | Boost pad | Launches the ball in the arrow's direction and lines it up with the pad |
 | Portal | Sends the ball to the matching portal at the same speed |
-| Bumper | Fires the ball back harder than it hit |
+| Bumper / cactus | Fires the ball back harder than it hit |
+| Conveyor belt | Keeps pushing the ball in the arrow's direction while it's on the belt |
+| Quicksand / void | Works like water: one-stroke penalty |
+| Gravity well | Pulls the ball in (the neon version of a dip) |
+| Crystal | A solid wall until you hit it hard enough, then it shatters and the ball goes through. Crystals reset for each player's turn |
 
 Each hole has a 10-stroke limit. Press **Esc** or **☰** to pause.
 
@@ -38,12 +52,14 @@ Each hole has a 10-stroke limit. Press **Esc** or **☰** to pause.
 
 ## Making your own holes
 
-All the holes are in the `LEVELS` array near the top of the `<script>` in `index.html`. The playfield is 800×500, and the playable area runs from (40, 40) to (760, 460).
+Each world's holes are in its own array near the top of the `<script>` in `index.html`: `GREEN_LEVELS`, `DESERT_LEVELS` and `COSMIC_LEVELS`. The `WORLDS` list ties each array to its name and theme. The playfield is 800×500, and the playable area runs from (40, 40) to (760, 460).
 
 ```js
 { name:"My Hole", par:3, tee:[110,250], hole:[690,250],
   walls:[[x,y,w,h]], sand:[[x,y,w,h]], water:[[x,y,w,h]], ice:[[x,y,w,h]],
   bumpers:[[x,y,radius]], gems:[[x,y]],
+  conveyors:[[x,y,w,h,angleDegrees]],       // belt that pushes the ball
+  breakables:[[x,y,w,h]],                   // crystal you can smash
   boosts:[[x,y,angleDegrees]],              // 0 = right, -90 = up
   portals:[[x1,y1,x2,y2]],                  // two-way pair
   slopes:[{x,y,r,k}],                       // k > 0 hill, k < 0 dip
@@ -52,4 +68,4 @@ All the holes are in the `LEVELS` array near the top of the `<script>` in `index
   tip:"Optional hint shown at the start" }
 ```
 
-To add a hole to a course, put its number in the `COURSES` list.
+Add a new object to a world's array and it appears in that world's courses and practice list automatically. To add a whole new world, add an entry to `WORLDS` and `THEMES`. It unlocks after the world before it.

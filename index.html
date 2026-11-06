@@ -96,6 +96,19 @@
   .standings .sc { margin-left:auto; font-weight:700; }
   .results { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:6px 0; }
   .results > span { display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.07); padding:5px 10px; border-radius:999px; }
+  .worlds { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; max-width:600px; margin:0 auto; }
+  .world { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 8px; border-radius:14px; color:#fff;
+    box-shadow:0 3px 0 rgba(0,0,0,.35); opacity:.75; border:2px solid transparent; }
+  .world.on { opacity:1; border-color:var(--accent); transform:translateY(-2px); }
+  .world:disabled { filter:grayscale(.85) brightness(.6); opacity:.8; }
+  .world .we { font-size:26px; line-height:1; }
+  .world small { font-weight:400; font-size:11.5px; opacity:.85; line-height:1.25; }
+  .w-green { background:linear-gradient(160deg, #3f9d4a, #22603a); }
+  .w-desert { background:linear-gradient(160deg, #d0864a, #8e4423); }
+  .w-cosmic { background:linear-gradient(160deg, #4b2a8f, #150f3a); }
+  .unlock { margin:12px auto; padding:12px 16px; border-radius:14px; max-width:360px; animation:glow 1.2s ease-in-out infinite alternate; }
+  @keyframes glow { from { box-shadow:0 0 0 2px var(--accent); } to { box-shadow:0 0 22px 4px var(--accent); } }
+  @media (max-width:560px){ .worlds { grid-template-columns:1fr; } .world small { display:none; } }
   .hint { font-size:13px; color:var(--dim); margin-top:12px; }
 </style>
 </head>
@@ -155,7 +168,7 @@ const SKINS = [
 //  slopes: {x, y, r, k}  k > 0 = hill (pushes out), k < 0 = dip (pulls in)
 //  movers: {x, y, w, h, ax, ay, speed}           spinners: {x, y, len, speed, blades}
 // =====================================================================
-const LEVELS = [
+const GREEN_LEVELS = [
   { name:"Warm Up", par:2, tee:[130,250], hole:[670,250], gems:[[400,120]],
     tip:"Drag back anywhere, then let go to putt" },
   { name:"Around the Bend", par:2, tee:[130,130], hole:[670,130],
@@ -196,11 +209,124 @@ const LEVELS = [
     tip:"Everything at once. Good luck!" },
 ];
 
-const COURSES = {
-  full:  { label:"Full 12", holes:[...Array(12).keys()] },
-  front: { label:"Front 6", holes:[0,1,2,3,4,5] },
-  back:  { label:"Back 6",  holes:[6,7,8,9,10,11] },
+// ---------- World 2: Dusty Canyon (conveyor belts, cacti, quicksand) ----------
+//  conveyors: [x, y, w, h, angleDeg] — push the ball along while it's on them
+const DESERT_LEVELS = [
+  { name:"Tumbleweed Trail", par:2, tee:[120,250], hole:[680,250],
+    conveyors:[[300,200,200,100,0]], gems:[[400,100]],
+    tip:"Conveyor belts push the ball along" },
+  { name:"Cactus Patch", par:3, tee:[100,400], hole:[700,100],
+    bumpers:[[250,150,18],[330,330,20],[420,200,18],[500,380,16],[560,140,20],[620,300,18]],
+    gems:[[420,420]], tip:"Cacti are prickly bumpers" },
+  { name:"Rock Arch", par:3, tee:[100,250], hole:[650,180],
+    walls:[[200,40,30,180],[200,300,30,160],[450,120,30,340]],
+    water:[[560,300,120,160]], gems:[[330,420]], tip:"Quicksand swallows the ball (+1 stroke)" },
+  { name:"Switchback", par:4, tee:[110,400], hole:[120,105],
+    walls:[[40,170,560,20],[200,320,560,20]],
+    conveyors:[[250,200,300,110,0],[260,50,240,110,0]], gems:[[700,400]],
+    tip:"The top belt works against you" },
+  { name:"The Mesa", par:3, tee:[100,250], hole:[700,250],
+    slopes:[{x:400,y:250,r:150,k:0.22}], water:[[330,40,140,55],[330,405,140,55]],
+    gems:[[400,250]] },
+  { name:"Sidewinder", par:3, tee:[100,400], hole:[400,265],
+    walls:[[320,180,20,150],[460,180,20,150],[320,330,160,20]],
+    conveyors:[[340,90,120,85,90]], bumpers:[[620,300,20]], gems:[[700,80]],
+    tip:"Ride the belt into the canyon" },
+  { name:"Oasis", par:3, tee:[100,400], hole:[690,120],
+    water:[[220,40,120,230],[460,230,120,230]], bumpers:[[400,120,16]], gems:[[400,400]],
+    tip:"Weave between the quicksand pits" },
+  { name:"Dust Devil", par:3, tee:[100,250], hole:[690,250],
+    walls:[[390,40,20,140],[390,320,20,140]],
+    spinners:[{x:400,y:250,len:66,speed:-1.6,blades:3}],
+    conveyors:[[180,200,160,100,0]], gems:[[690,80]] },
+  { name:"Canyon Finale", par:4, tee:[110,100], hole:[680,410],
+    walls:[[250,40,24,280],[520,180,24,280]], conveyors:[[300,250,180,180,-90]],
+    water:[[580,40,140,110]], bumpers:[[400,120,18],[640,280,18]],
+    movers:[{x:650,y:340,w:16,h:60,ax:45,ay:0,speed:1.7}],
+    gems:[[140,420],[700,230]], tip:"Last stop in the canyon" },
+];
+
+// ---------- World 3: Neon Nebula (gravity wells, breakable crystals, the void) ----------
+//  breakables: [x, y, w, h] — smash through with a hard enough hit
+const COSMIC_LEVELS = [
+  { name:"Liftoff", par:2, tee:[120,250], hole:[680,250],
+    slopes:[{x:400,y:150,r:120,k:-0.15}], gems:[[400,400]],
+    tip:"Gravity wells bend your shot" },
+  { name:"Crystal Wall", par:2, tee:[120,250], hole:[680,250],
+    breakables:[[390,40,20,140],[390,180,20,140],[390,320,20,140]], gems:[[680,80]],
+    tip:"Hit crystals hard to smash them" },
+  { name:"Orbit", par:3, tee:[110,250], hole:[690,250],
+    slopes:[{x:400,y:250,r:160,k:-0.18}], water:[[382,232,36,36]], gems:[[400,80]],
+    tip:"Don't fall into the black hole" },
+  { name:"Asteroid Field", par:3, tee:[100,400], hole:[700,100],
+    bumpers:[[250,300,18],[350,180,22],[450,320,18],[550,200,20],[650,330,16],[320,60,16]],
+    breakables:[[480,40,24,100]], gems:[[700,420]] },
+  { name:"Wormhole", par:3, tee:[130,380], hole:[650,110],
+    walls:[[260,40,20,420],[520,40,20,420]],
+    portals:[[150,110,400,390],[400,110,650,390]], gems:[[400,250]],
+    tip:"Chain the wormholes together" },
+  { name:"Repulsor Ridge", par:3, tee:[100,100], hole:[700,400],
+    slopes:[{x:290,y:250,r:110,k:0.2},{x:530,y:250,r:110,k:0.2}],
+    water:[[385,40,50,90],[385,370,50,90]], gems:[[410,250]],
+    tip:"Repulsors push you away" },
+  { name:"Crystal Maze", par:3, tee:[110,250], hole:[690,250],
+    breakables:[[250,40,24,140],[250,180,24,140],[250,320,24,140],[500,40,24,140],[500,180,24,140],[500,320,24,140]],
+    slopes:[{x:690,y:250,r:60,k:-0.08}], gems:[[380,80]] },
+  { name:"Pulsar", par:3, tee:[100,250], hole:[700,250],
+    walls:[[390,40,20,140],[390,320,20,140]],
+    spinners:[{x:400,y:250,len:66,speed:2.0,blades:2}],
+    slopes:[{x:250,y:380,r:90,k:-0.14},{x:560,y:120,r:90,k:-0.14}], gems:[[560,120]] },
+  { name:"Supernova", par:4, tee:[110,400], hole:[700,100],
+    walls:[[200,40,24,300],[420,160,24,300]], breakables:[[600,40,24,200]],
+    water:[[520,300,120,160]], portals:[[110,90,690,400]], bumpers:[[320,250,20]],
+    slopes:[{x:300,y:110,r:80,k:-0.12}], gems:[[320,80],[700,250]],
+    tip:"The grand finale among the stars" },
+];
+
+const WORLDS = [
+  { id:"green", name:"Greenfield Park", emoji:"🌳", levels:GREEN_LEVELS, theme:"green",
+    blurb:"Boosts, portals, hills & ice" },
+  { id:"desert", name:"Dusty Canyon", emoji:"🌵", levels:DESERT_LEVELS, theme:"desert",
+    blurb:"Conveyor belts, cacti & quicksand" },
+  { id:"cosmic", name:"Neon Nebula", emoji:"🪐", levels:COSMIC_LEVELS, theme:"cosmic",
+    blurb:"Gravity wells, crystals & the void" },
+];
+
+const THEMES = {
+  green: {
+    page:"radial-gradient(ellipse at 50% -10%, #23573c 0%, #0f2b1e 45%, #081710 100%)",
+    rough:"#1c4a2f", roughDot:"rgba(255,255,255,.035)", railOuter:"#5c3a1c", rail:"#8b5a2b",
+    fairA:"#4caf50", fairB:"#55b859", wallA:"#9a6533", wallB:"#7a4c22",
+  },
+  desert: {
+    page:"radial-gradient(ellipse at 50% -10%, #7a4a2a 0%, #3d2416 45%, #1f120a 100%)",
+    rough:"#c48a52", roughDot:"rgba(120,60,20,.18)", railOuter:"#6e3518", rail:"#a0522d",
+    fairA:"#8fae4f", fairB:"#98b757", wallA:"#c0693a", wallB:"#8e4423",
+  },
+  cosmic: {
+    page:"radial-gradient(ellipse at 50% -10%, #2a1d5c 0%, #120d33 45%, #06051a 100%)",
+    rough:"#07061a", roughDot:"rgba(255,255,255,.6)", railOuter:"#0d0b2a", rail:"#2de2e6",
+    fairA:"#1b1f4a", fairB:"#1f2454", wallA:"#3a1a5c", wallB:"#2a1240",
+  },
 };
+
+let LEVELS = GREEN_LEVELS;   // always points at the active world's holes
+let worldIdx = 0;
+function setWorld(w){
+  worldIdx = w; LEVELS = WORLDS[w].levels;
+  document.body.style.background = THEMES[WORLDS[w].theme].page;
+}
+const theme = () => THEMES[WORLDS[worldIdx].theme];
+
+function courseOptions(w){
+  const n = WORLDS[w].levels.length, half = Math.ceil(n/2), all = [...Array(n).keys()];
+  return {
+    full:  { label:`Full ${n}`,       holes:all },
+    front: { label:`Front ${half}`,   holes:all.slice(0, half) },
+    back:  { label:`Back ${n-half}`,  holes:all.slice(half) },
+  };
+}
+const BREAK_V = 4.5;   // impact speed needed to smash a crystal
 
 // =====================================================================
 //  DOM / storage
@@ -222,7 +348,13 @@ const save = {
   holeBest: store.get("holeBest", {}),
   roundBest: store.get("roundBest", {}),
   muted: store.get("muted", false),
+  unlocked: store.get("unlocked", ["green"]),
+  completed: store.get("completed", {}),
 };
+// migrate saves from the single-course version
+Object.keys(save.holeBest).forEach(k => { if (/^\d+$/.test(k)){ save.holeBest["green-" + k] = save.holeBest[k]; delete save.holeBest[k]; } });
+["full","front","back"].forEach(k => { if (save.roundBest[k]){ save.roundBest["green-" + k] = save.roundBest[k]; delete save.roundBest[k]; } });
+const holeKey = (w, i) => `${WORLDS[w].id}-${i}`;
 const persist = () => Object.entries(save).forEach(([k, v]) => store.set(k, v));
 
 // =====================================================================
@@ -256,6 +388,8 @@ const sfx = {
   ace:    () => [523,659,784,1047,1319,1568,2093].forEach((f,i) => tone(f, 0.22, "square", 0.07, 0, i*0.07)),
   click:  () => tone(700, 0.04, "triangle", 0.12),
   buy:    () => [880,1175,1568].forEach((f,i) => tone(f, 0.12, "triangle", 0.15, 0, i*0.06)),
+  shatter:() => { tone(2200, 0.15, "square", 0.05, 600); tone(1400, 0.25, "triangle", 0.1, 300, 0.02); },
+  unlock: () => [392,523,659,784,1047,1319].forEach((f,i) => tone(f, 0.3, "triangle", 0.15, 0, i*0.1)),
 };
 
 // =====================================================================
@@ -269,13 +403,14 @@ let lastPos = { x:0, y:0 };
 let staticSegs = [], dynSegs = [], dynCircles = [], bumperList = [], portalEnds = [];
 let drag = null;
 let trail = [], particles = [], floaters = [], rings = [];
+let rollFrames = 0;
 let banner = null, shake = 0, sinkTimer = 0, demoTimer = 0;
 let turnGems = new Set();
 let round = null;          // { holes, hi, players:[{name,color,scores:[]}], pi, practice, course }
 let token = 0;             // invalidates pending timeouts when the flow changes
-let menuPlayers = 1, menuCourse = "full";
+let menuPlayers = 1, menuCourse = "full", menuWorld = 0, practiceWorld = 0;
 
-function makeBall(x, y){ return { x, y, vx:0, vy:0, r:BALL_R, boostIn:-1, portalLock:-1 }; }
+function makeBall(x, y){ return { x, y, vx:0, vy:0, r:BALL_R, boostIn:-1, portalLock:-1, broken:new Set() }; }
 const skin = () => SKINS.find(s => s.id === save.skin) || SKINS[0];
 const curPlayer = () => round ? round.players[round.pi] : null;
 
@@ -294,6 +429,7 @@ function loadLevel(i){
   levelIdx = i; level = LEVELS[i];
   staticSegs = rectSegs(MIN_X, MIN_Y, MAX_X-MIN_X, MAX_Y-MIN_Y, null);
   (level.walls || []).forEach(w => staticSegs.push(...rectSegs(w[0], w[1], w[2], w[3], null)));
+  (level.breakables || []).forEach((w, k) => rectSegs(w[0], w[1], w[2], w[3], null).forEach(s => { s.brk = k; staticSegs.push(s); }));
   bumperList = (level.bumpers || []).map(b => ({ x:b[0], y:b[1], r:b[2], kick:true, flash:0 }));
   portalEnds = [];
   (level.portals || []).forEach((p, k) => { portalEnds.push({ x:p[0], y:p[1], c:k }, { x:p[2], y:p[3], c:k }); });
@@ -333,6 +469,7 @@ function updateDynamic(){
 //  Physics (pure on a ball object; fx = event hooks, null for previews)
 // =====================================================================
 function collideSeg(b, s, fx){
+  if (s.brk != null && b.broken.has(s.brk)) return;
   const dx = s.bx-s.ax, dy = s.by-s.ay, len2 = dx*dx + dy*dy;
   let u = ((b.x-s.ax)*dx + (b.y-s.ay)*dy) / len2;
   u = u < 0 ? 0 : u > 1 ? 1 : u;
@@ -341,9 +478,14 @@ function collideSeg(b, s, fx){
   const d = Math.hypot(nx, ny);
   if (d >= b.r || d < 1e-6) return;
   nx /= d; ny /= d;
-  b.x = cx + nx*b.r; b.y = cy + ny*b.r;
   const [ovx, ovy] = s.vf ? s.vf(cx, cy) : [0, 0];
   const rv = (b.vx-ovx)*nx + (b.vy-ovy)*ny;
+  if (s.brk != null && -rv > BREAK_V){        // smash the crystal and keep going
+    b.broken.add(s.brk); b.vx *= 0.7; b.vy *= 0.7;
+    if (fx) fx.shatter(s.brk);
+    return;
+  }
+  b.x = cx + nx*b.r; b.y = cy + ny*b.r;
   if (rv < 0){
     b.vx -= (1+WALL_E)*rv*nx; b.vy -= (1+WALL_E)*rv*ny;
     if (fx && -rv > 1) fx.wall(-rv, cx, cy);
@@ -383,7 +525,8 @@ function physicsFrame(b, fx){
   for (const s of level.slopes || []){
     const dx = b.x-s.x, dy = b.y-s.y, d = Math.hypot(dx, dy);
     if (d < s.r && d > 0.5){
-      const f = s.k * (1 - d/s.r);
+      // hills push hardest at the top; dips pull hardest mid-slope and go flat at the bottom so the ball can settle
+      const q = d/s.r, f = s.k > 0 ? s.k*(1 - q) : s.k*Math.min(1, 4*q*(1 - q)*1.3);
       b.vx += dx/d*f; b.vy += dy/d*f;
       slopeF = Math.max(slopeF, Math.abs(f));
     }
@@ -420,6 +563,14 @@ function physicsFrame(b, fx){
     }
   }
 
+  // conveyor belts
+  let onBelt = false;
+  for (const c of level.conveyors || []){
+    if (!inRect(b.x, b.y, c)) continue;
+    const a = c[4]*Math.PI/180;
+    b.vx += Math.cos(a)*0.22; b.vy += Math.sin(a)*0.22; onBelt = true;
+  }
+
   // surface friction
   const onSand = (level.sand || []).some(r => inRect(b.x, b.y, r));
   const onIce = !onSand && (level.ice || []).some(r => inRect(b.x, b.y, r));
@@ -438,7 +589,7 @@ function physicsFrame(b, fx){
 
   if ((level.water || []).some(r => inRect(b.x, b.y, r))) return "water";
   if (b.x < MIN_X-5 || b.x > MAX_X+5 || b.y < MIN_Y-5 || b.y > MAX_Y+5) return "water"; // safety net
-  if (Math.hypot(b.vx, b.vy) < 0.06 && slopeF < 0.03) return "stop";
+  if (Math.hypot(b.vx, b.vy) < 0.06 && slopeF < 0.03 && !onBelt) return "stop";
   return null;
 }
 
@@ -449,6 +600,15 @@ const FX = {
   portal(a, o){ sfx.portal(); const col = PORTAL_COLORS[a.c % PORTAL_COLORS.length];
     burst(a.x, a.y, col, 14, 3); burst(o.x, o.y, col, 14, 3); ring(o.x, o.y, hexToRgba(col), 30); },
   sand(b){ burst(b.x, b.y, "#d9bd7a", 1, 1); },
+  shatter(k){
+    const r = level.breakables[k], cx = r[0]+r[2]/2, cy = r[1]+r[3]/2;
+    sfx.shatter(); shake = Math.max(shake, 6);
+    for (let i = 0; i < 26; i++){
+      particles.push({ x:r[0]+Math.random()*r[2], y:r[1]+Math.random()*r[3], vx:(Math.random()-.5)*5, vy:(Math.random()-.5)*5,
+        g:0, life:1, decay:0.02+Math.random()*0.02, color:Math.random() < .5 ? "#7df9ff" : "#ff7df0", size:2+Math.random()*3, square:true, rot:Math.random()*6 });
+    }
+    ring(cx, cy, "rgba(125,249,255,", 40);
+  },
 };
 function hexToRgba(h){ const n = parseInt(h.slice(1), 16); return `rgba(${n>>16},${(n>>8)&255},${n&255},`; }
 
@@ -463,18 +623,19 @@ function step(){
 
   if (state === "aim"){
     collideAll(ball, FX);           // moving obstacles can nudge a resting ball
-    if (Math.hypot(ball.vx, ball.vy) > 0.3){ state = "rolling"; drag = null; }
+    if (Math.hypot(ball.vx, ball.vy) > 0.3){ state = "rolling"; drag = null; rollFrames = 0; }
     else { ball.vx = ball.vy = 0; }
     if (demo && (demoTimer -= DT) <= 0) demoShot();
   }
 
   if (state === "rolling"){
+    rollFrames++;
     const res = physicsFrame(ball, FX);
     emitTrail();
     checkGems();
     if (res === "sink") startSink();
     else if (res === "water") splash();
-    else if (res === "stop"){
+    else if (res === "stop" || (rollFrames > 900 && Math.hypot(ball.vx, ball.vy) < 2.5)){
       ball.vx = ball.vy = 0;
       if (demo){ if (strokes >= 4) nextDemo(); else { state = "aim"; demoTimer = 0.9; } }
       else if (strokes >= MAX_STROKES) endTurn(true);
@@ -500,7 +661,7 @@ function step(){
 function shoot(power, ux, uy){
   lastPos = { x:ball.x, y:ball.y };
   ball.vx = ux * power * MAX_SPEED; ball.vy = uy * power * MAX_SPEED;
-  strokes++; state = "rolling";
+  strokes++; state = "rolling"; rollFrames = 0;
   sfx.hit(power);
   burst(ball.x, ball.y, "rgba(255,255,255,.8)", 6, 1.5);
   updateHUD();
@@ -514,9 +675,9 @@ function splash(){
     strokes++;
     floaters.push({ x:ball.x, y:ball.y-16, text:"Splash! +1", life:1.4, max:1.4, size:22, color:"#8fd3ff", rise:0.6 });
   }
-  const keep = ball;
+  const broken = ball.broken;
   ball = makeBall(lastPos.x, lastPos.y);
-  ball.boostIn = -1; void keep;
+  ball.broken = broken;
   updateHUD();
   if (!demo && strokes >= MAX_STROKES) endTurn(true);
   else { state = "aim"; demoTimer = 0.9; }
@@ -552,10 +713,11 @@ function scoreName(s, p){
   return names[d] || (d < 0 ? "Incredible!" : `+${d}`);
 }
 
-function startRound(holes, nPlayers, practice, course){
+function startRound(world, holes, nPlayers, practice, course){
   demo = false; token++;
+  setWorld(world);
   round = {
-    holes, hi:0, pi:0, practice, course,
+    world, holes, hi:0, pi:0, practice, course,
     players: Array.from({ length:nPlayers }, (_, i) => ({ name:nPlayers === 1 ? "You" : `P${i+1}`, color:PLAYER_COLORS[i], scores:[] })),
   };
   hideOverlay();
@@ -577,8 +739,8 @@ function endTurn(maxed){
   const p = curPlayer();
   p.scores[round.hi] = strokes;
   // per-hole best
-  const prev = save.holeBest[levelIdx];
-  if (prev == null || strokes < prev){ save.holeBest[levelIdx] = strokes; persist(); }
+  const hk = holeKey(worldIdx, levelIdx), prev = save.holeBest[hk];
+  if (prev == null || strokes < prev){ save.holeBest[hk] = strokes; persist(); }
   const name = maxed ? "Max strokes" : scoreName(strokes, level.par);
   if (!maxed){
     strokes === 1 ? sfx.ace() : sfx.sink();
@@ -607,6 +769,9 @@ function startDemo(){
   nextDemo();
 }
 function nextDemo(){
+  const open = WORLDS.map((w, i) => i).filter(i => save.unlocked.includes(WORLDS[i].id));
+  const w = overlay.dataset.world != null && open.includes(+overlay.dataset.world) ? +overlay.dataset.world : open[Math.floor(Math.random()*open.length)];
+  setWorld(w);
   loadLevel(Math.floor(Math.random()*LEVELS.length));
   state = "aim"; demoTimer = 1.0;
   updateHUD();
@@ -677,43 +842,134 @@ function drawWallRect(x, y, w, h, hazard){
     for (let i = -h; i < w+h; i += 14){ ctx.beginPath(); ctx.moveTo(x+i, y); ctx.lineTo(x+i+7, y); ctx.lineTo(x+i+7-h, y+h); ctx.lineTo(x+i-h, y+h); ctx.fill(); }
     ctx.restore();
   } else {
-    const g = ctx.createLinearGradient(x, y, x+w, y+h);
-    g.addColorStop(0, "#9a6533"); g.addColorStop(1, "#7a4c22");
+    const T = theme(), g = ctx.createLinearGradient(x, y, x+w, y+h);
+    g.addColorStop(0, T.wallA); g.addColorStop(1, T.wallB);
     ctx.fillStyle = g; rr(x, y, w, h, 5); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,.14)"; rr(x+2, y+2, w-4, Math.min(5, h-4), 3); ctx.fill();
+    if (WORLDS[worldIdx].theme === "cosmic"){
+      ctx.save(); ctx.shadowColor = "#ff3cac"; ctx.shadowBlur = 10;
+      ctx.strokeStyle = "#ff3cac"; ctx.lineWidth = 2; rr(x+1, y+1, w-2, h-2, 5); ctx.stroke(); ctx.restore();
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,.14)"; rr(x+2, y+2, w-4, Math.min(5, h-4), 3); ctx.fill();
+      if (WORLDS[worldIdx].theme === "desert"){   // rock strata
+        ctx.strokeStyle = "rgba(80,30,10,.35)"; ctx.lineWidth = 1.5;
+        if (h > w) for (let yy = y + 14; yy < y + h - 4; yy += 16){ ctx.beginPath(); ctx.moveTo(x+3, yy); ctx.lineTo(x+w-3, yy+3); ctx.stroke(); }
+        else for (let xx = x + 14; xx < x + w - 4; xx += 16){ ctx.beginPath(); ctx.moveTo(xx, y+3); ctx.lineTo(xx+3, y+h-3); ctx.stroke(); }
+      }
+    }
+  }
+}
+
+function drawCrystal(r){
+  const [x, y, w, h] = r;
+  ctx.save(); ctx.shadowColor = "#7df9ff"; ctx.shadowBlur = 12 + Math.sin(t*3)*4;
+  const g = ctx.createLinearGradient(x, y, x+w, y+h);
+  g.addColorStop(0, "rgba(125,249,255,.85)"); g.addColorStop(1, "rgba(255,125,240,.75)");
+  ctx.fillStyle = g; rr(x, y, w, h, 4); ctx.fill(); ctx.restore();
+  ctx.save(); rr(x, y, w, h, 4); ctx.clip();
+  ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1.2;
+  for (let i = 0; i < 6; i++){ const yy = y + hash(i + x)*h; ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x+w, yy + (hash(i+y)-.5)*30); ctx.stroke(); }
+  const sh = ((t*0.5 + x*0.01) % 1.5) * (h + 40) - 20;
+  ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.fillRect(x, y + sh, w, 8);
+  ctx.restore();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; rr(x, y, w, h, 4); ctx.stroke();
+}
+
+function drawBumper(b){
+  const th = WORLDS[worldIdx].theme, r = b.r * (1 + b.flash*0.2), lit = b.flash > 0.1;
+  ctx.fillStyle = "rgba(0,0,0,.25)"; circle(b.x+3, b.y+4, b.r); ctx.fill();
+  if (th === "desert"){            // top-down cactus
+    ctx.fillStyle = lit ? "#b8f27a" : "#3f8f3a"; circle(b.x, b.y, r); ctx.fill();
+    ctx.strokeStyle = "rgba(20,60,20,.6)"; ctx.lineWidth = 2;
+    for (let k = 0; k < 6; k++){ const a = k*Math.PI/3; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x+Math.cos(a)*r*0.9, b.y+Math.sin(a)*r*0.9); ctx.stroke(); }
+    ctx.strokeStyle = "#f4e7c5"; ctx.lineWidth = 1.2;
+    for (let k = 0; k < 12; k++){ const a = k*Math.PI/6 + 0.26; ctx.beginPath(); ctx.moveTo(b.x+Math.cos(a)*r, b.y+Math.sin(a)*r); ctx.lineTo(b.x+Math.cos(a)*(r+4), b.y+Math.sin(a)*(r+4)); ctx.stroke(); }
+    ctx.fillStyle = "#ff6fa8"; circle(b.x, b.y, r*0.25); ctx.fill();
+  } else if (th === "cosmic"){     // neon ring
+    ctx.save(); ctx.shadowColor = "#ffd34e"; ctx.shadowBlur = lit ? 26 : 12;
+    ctx.fillStyle = "#1a1036"; circle(b.x, b.y, r); ctx.fill();
+    ctx.strokeStyle = lit ? "#fff" : "#ffd34e"; ctx.lineWidth = 3; circle(b.x, b.y, r-1.5); ctx.stroke();
+    ctx.strokeStyle = "#ff3cac"; ctx.lineWidth = 2; circle(b.x, b.y, r*0.5); ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.fillStyle = lit ? "#fff3a0" : "#e84545"; circle(b.x, b.y, r); ctx.fill();
+    ctx.fillStyle = "#fff"; circle(b.x, b.y, r*0.64); ctx.fill();
+    ctx.fillStyle = lit ? "#ffb703" : "#e84545"; circle(b.x, b.y, r*0.34); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.45)"; circle(b.x-r*0.35, b.y-r*0.4, r*0.18); ctx.fill();
   }
 }
 
 function drawCourse(){
-  // rough + rail
-  ctx.fillStyle = "#1c4a2f"; ctx.fillRect(-20, -20, W+40, H+40);
-  for (let i = 0; i < 60; i++){ ctx.fillStyle = "rgba(255,255,255,.035)"; circle(hash(i)*W, hash(i+50)*H, 2+hash(i+9)*3); ctx.fill(); }
-  ctx.fillStyle = "#5c3a1c"; rr(MIN_X-17, MIN_Y-17, MAX_X-MIN_X+34, MAX_Y-MIN_Y+34, 16); ctx.fill();
-  ctx.fillStyle = "#8b5a2b"; rr(MIN_X-13, MIN_Y-13, MAX_X-MIN_X+26, MAX_Y-MIN_Y+26, 12); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.12)"; rr(MIN_X-13, MIN_Y-13, MAX_X-MIN_X+26, 4, 2); ctx.fill();
+  const T = theme(), th = WORLDS[worldIdx].theme;
 
-  // checkerboard mowing pattern
+  // rough / backdrop
+  ctx.fillStyle = T.rough; ctx.fillRect(-20, -20, W+40, H+40);
+  for (let i = 0; i < 70; i++){
+    const tw = th === "cosmic" ? 0.3 + 0.7*Math.abs(Math.sin(t*1.5 + i)) : 1;
+    ctx.globalAlpha = tw; ctx.fillStyle = T.roughDot;
+    circle(hash(i)*W, hash(i+50)*H, th === "cosmic" ? 0.6 + hash(i+9)*1.4 : 2 + hash(i+9)*3); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // rail
+  ctx.fillStyle = T.railOuter; rr(MIN_X-17, MIN_Y-17, MAX_X-MIN_X+34, MAX_Y-MIN_Y+34, 16); ctx.fill();
+  if (th === "cosmic"){
+    ctx.save(); ctx.shadowColor = T.rail; ctx.shadowBlur = 18;
+    ctx.strokeStyle = T.rail; ctx.lineWidth = 4; rr(MIN_X-9, MIN_Y-9, MAX_X-MIN_X+18, MAX_Y-MIN_Y+18, 10); ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.fillStyle = T.rail; rr(MIN_X-13, MIN_Y-13, MAX_X-MIN_X+26, MAX_Y-MIN_Y+26, 12); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.12)"; rr(MIN_X-13, MIN_Y-13, MAX_X-MIN_X+26, 4, 2); ctx.fill();
+  }
+
+  // fairway: checkerboard mowing pattern
   for (let x = MIN_X, i = 0; x < MAX_X; x += 40, i++){
     for (let y = MIN_Y, j = 0; y < MAX_Y; y += 40, j++){
-      ctx.fillStyle = (i+j) % 2 ? "#4caf50" : "#55b859";
+      ctx.fillStyle = (i+j) % 2 ? T.fairA : T.fairB;
       ctx.fillRect(x, y, Math.min(40, MAX_X-x), Math.min(40, MAX_Y-y));
     }
+  }
+  if (th === "cosmic"){
+    ctx.strokeStyle = "rgba(45,226,230,.08)"; ctx.lineWidth = 1;
+    for (let x = MIN_X; x <= MAX_X; x += 40){ ctx.beginPath(); ctx.moveTo(x, MIN_Y); ctx.lineTo(x, MAX_Y); ctx.stroke(); }
+    for (let y = MIN_Y; y <= MAX_Y; y += 40){ ctx.beginPath(); ctx.moveTo(MIN_X, y); ctx.lineTo(MAX_X, y); ctx.stroke(); }
+  }
+  if (th === "desert"){
+    ctx.fillStyle = "rgba(90,60,20,.12)";
+    for (let i = 0; i < 40; i++) circle(MIN_X + hash(i+200)*(MAX_X-MIN_X), MIN_Y + hash(i+300)*(MAX_Y-MIN_Y), 1.5 + hash(i)*2), ctx.fill();
   }
   const g = ctx.createLinearGradient(0, MIN_Y, 0, MIN_Y+16);
   g.addColorStop(0, "rgba(0,0,0,.28)"); g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g; ctx.fillRect(MIN_X, MIN_Y, MAX_X-MIN_X, 16);
 
-  // slopes
+  // slopes (hills/dips · mesas · gravity wells/repulsors)
   (level.slopes || []).forEach(s => {
     const hill = s.k > 0;
+    const inner = th === "cosmic" ? (hill ? "rgba(45,226,230,.32)" : "rgba(170,90,255,.5)")
+                : th === "desert" ? (hill ? "rgba(200,110,60,.55)" : "rgba(60,30,10,.35)")
+                : (hill ? "rgba(220,255,200,.35)" : "rgba(0,40,10,.38)");
     const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
-    gr.addColorStop(0, hill ? "rgba(220,255,200,.35)" : "rgba(0,40,10,.38)");
+    gr.addColorStop(0, inner);
     gr.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = gr; circle(s.x, s.y, s.r); ctx.fill();
-    ctx.strokeStyle = hill ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"; ctx.lineWidth = 1.5;
+    if (th === "cosmic" && !hill){
+      // swirling spiral arms
+      ctx.strokeStyle = "rgba(200,150,255,.35)"; ctx.lineWidth = 2;
+      for (let arm = 0; arm < 3; arm++){
+        ctx.beginPath();
+        for (let k = 0; k <= 30; k++){
+          const f = k/30, a = arm*Math.PI*2/3 - t*1.2 + f*4, d = s.r*(0.95 - f*0.85);
+          const px = s.x + Math.cos(a)*d, py = s.y + Math.sin(a)*d;
+          k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.strokeStyle = th === "cosmic" ? (hill ? "rgba(45,226,230,.3)" : "rgba(200,150,255,.25)")
+                    : hill ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)";
+    ctx.lineWidth = 1.5;
     for (let k = 1; k <= 3; k++){ circle(s.x, s.y, s.r*k/3.4); ctx.stroke(); }
     // little flow arrows
-    ctx.fillStyle = hill ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)";
+    ctx.fillStyle = th === "cosmic" ? "rgba(255,255,255,.4)" : hill ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)";
     for (let k = 0; k < 8; k++){
       const a = k*Math.PI/4 + 0.3, ph = ((t*0.4 + k*0.13) % 1);
       const d = hill ? s.r*(0.35 + ph*0.5) : s.r*(0.85 - ph*0.5);
@@ -750,8 +1006,54 @@ function drawCourse(){
     }
   });
 
-  // water
-  (level.water || []).forEach(r => {
+  // conveyor belts
+  (level.conveyors || []).forEach(c => {
+    const [x, y, w, h, ang] = c, a = ang*Math.PI/180;
+    ctx.fillStyle = "rgba(0,0,0,.25)"; rr(x+3, y+4, w, h, 8); ctx.fill();
+    ctx.fillStyle = "#3b3f47"; rr(x, y, w, h, 8); ctx.fill();
+    ctx.save(); rr(x+4, y+4, w-8, h-8, 5); ctx.clip();
+    ctx.fillStyle = "#4a4f59"; ctx.fillRect(x, y, w, h);
+    // moving chevrons along the belt direction
+    const cx = x + w/2, cy = y + h/2, span = Math.hypot(w, h);
+    ctx.translate(cx, cy); ctx.rotate(a);
+    ctx.strokeStyle = "rgba(255,190,80,.75)"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const off = (t*40) % 26;
+    for (let s = -span/2 - 26; s < span/2 + 26; s += 26){
+      for (let q = -span/2; q < span/2; q += 30){
+        ctx.beginPath(); ctx.moveTo(s+off-6, q-7); ctx.lineTo(s+off+2, q); ctx.lineTo(s+off-6, q+7); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = "#ffb84d"; ctx.lineWidth = 2; rr(x, y, w, h, 8); ctx.stroke();
+  });
+
+  // water / quicksand / the void
+  if (th === "desert") (level.water || []).forEach((r, k) => {
+    ctx.fillStyle = "#6b4a22"; rr(r[0]-2, r[1]-2, r[2]+4, r[3]+4, 16); ctx.fill();
+    ctx.fillStyle = "#9c7440"; rr(r[0], r[1], r[2], r[3], 14); ctx.fill();
+    ctx.save(); rr(r[0], r[1], r[2], r[3], 14); ctx.clip();
+    const cx = r[0]+r[2]/2, cy = r[1]+r[3]/2;
+    ctx.strokeStyle = "rgba(60,35,10,.4)"; ctx.lineWidth = 3;
+    for (let i = 1; i < 6; i++){ ctx.beginPath(); ctx.ellipse(cx, cy, i*r[2]/9, i*r[3]/9, t*0.4*(i % 2 ? 1 : -1), 0, Math.PI*1.4); ctx.stroke(); }
+    ctx.fillStyle = "rgba(255,230,180,.25)";
+    for (let i = 0; i < 12; i++) circle(r[0]+hash(i+k*7)*r[2], r[1]+hash(i*2+k)*r[3], 1.5), ctx.fill();
+    ctx.restore();
+  });
+  if (th === "cosmic") (level.water || []).forEach(r => {
+    const cx = r[0]+r[2]/2, cy = r[1]+r[3]/2, R = Math.max(r[2], r[3])*0.75;
+    const vg = ctx.createRadialGradient(cx, cy, 2, cx, cy, R);
+    vg.addColorStop(0, "#000"); vg.addColorStop(0.6, "#05010f"); vg.addColorStop(1, "#160a2e");
+    ctx.save(); ctx.shadowColor = "#b77dff"; ctx.shadowBlur = 16;
+    ctx.fillStyle = vg; rr(r[0], r[1], r[2], r[3], Math.min(r[2], r[3])/2.2); ctx.fill(); ctx.restore();
+    ctx.save(); rr(r[0], r[1], r[2], r[3], Math.min(r[2], r[3])/2.2); ctx.clip();
+    for (let i = 0; i < 14; i++){
+      const a = hash(i)*6.28 + t*(0.6 + hash(i+3)), d = ((hash(i+5) - t*0.15) % 1 + 1) % 1 * R;
+      ctx.fillStyle = `rgba(200,160,255,${d/R})`; circle(cx + Math.cos(a)*d, cy + Math.sin(a)*d, 1.4); ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle = "rgba(183,125,255,.7)"; ctx.lineWidth = 2; rr(r[0], r[1], r[2], r[3], Math.min(r[2], r[3])/2.2); ctx.stroke();
+  });
+  if (th === "green") (level.water || []).forEach(r => {
     ctx.fillStyle = "#1f6aa8"; rr(r[0]-2, r[1]-2, r[2]+4, r[3]+4, 12); ctx.fill();
     const wg = ctx.createLinearGradient(0, r[1], 0, r[1]+r[3]);
     wg.addColorStop(0, "#3d9be0"); wg.addColorStop(1, "#2b7cc2");
@@ -814,16 +1116,10 @@ function drawCourse(){
   // walls & movers
   (level.walls || []).forEach(w => drawWallRect(w[0], w[1], w[2], w[3], false));
   (level.movers || []).forEach(m => { const s = moverState(m); drawWallRect(s.cx-m.w/2, s.cy-m.h/2, m.w, m.h, true); });
+  (level.breakables || []).forEach((r, k) => { if (!ball.broken.has(k)) drawCrystal(r); });
 
   // bumpers
-  bumperList.forEach(b => {
-    ctx.fillStyle = "rgba(0,0,0,.25)"; circle(b.x+3, b.y+4, b.r); ctx.fill();
-    const r = b.r * (1 + b.flash*0.2);
-    ctx.fillStyle = b.flash > 0.1 ? "#fff3a0" : "#e84545"; circle(b.x, b.y, r); ctx.fill();
-    ctx.fillStyle = "#fff"; circle(b.x, b.y, r*0.64); ctx.fill();
-    ctx.fillStyle = b.flash > 0.1 ? "#ffb703" : "#e84545"; circle(b.x, b.y, r*0.34); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,.45)"; circle(b.x-r*0.35, b.y-r*0.4, r*0.18); ctx.fill();
-  });
+  bumperList.forEach(drawBumper);
 
   // spinners
   (level.spinners || []).forEach(sp => {
@@ -870,7 +1166,7 @@ function drawAim(){
   const col = `hsl(${120 - p*120}, 90%, 58%)`;
 
   // predicted path (first part only — skill still matters!)
-  const ghost = { ...ball, vx:ux*p*MAX_SPEED, vy:uy*p*MAX_SPEED };
+  const ghost = { ...ball, broken:new Set(ball.broken), vx:ux*p*MAX_SPEED, vy:uy*p*MAX_SPEED };
   for (let i = 1; i <= PREVIEW_FRAMES; i++){
     const res = physicsFrame(ghost, null);
     if (i % 2 === 0){
@@ -1006,7 +1302,7 @@ function updateHUD(){
     $("players").innerHTML = "";
     return;
   }
-  $("hHole").textContent = round.practice ? `Practice ${levelIdx+1}` : `Hole ${round.hi+1}/${round.holes.length}`;
+  $("hHole").textContent = WORLDS[round.world].emoji + " " + (round.practice ? `Practice ${levelIdx+1}` : `Hole ${round.hi+1}/${round.holes.length}`);
   $("hName").textContent = level.name;
   $("hPar").textContent = `Par ${level.par}`;
   $("players").innerHTML = round.players.map((p, i) => {
@@ -1038,34 +1334,58 @@ function scorecardHTML(){
   </table>`;
 }
 
+const isOpen = w => save.unlocked.includes(WORLDS[w].id);
+function worldPicker(act, sel){
+  return `<div class="worlds">${WORLDS.map((w, i) => {
+    const open = isOpen(i), prev = WORLDS[i-1];
+    return `<button class="world ${i === sel ? "on" : ""} w-${w.theme}" data-act="${act}" data-w="${i}" ${open ? "" : "disabled"}>
+      <span class="we">${open ? w.emoji : "🔒"}</span><b>${w.name}</b>
+      <small>${open ? `${w.levels.length} holes · ${w.blurb}` : `Finish the full ${prev.name} course to unlock`}</small>
+    </button>`;
+  }).join("")}</div>`;
+}
+
 function showMenu(){
   token++;
-  if (!demo) startDemo();
-  const bestFor = k => save.roundBest[k];
+  if (!isOpen(menuWorld)) menuWorld = 0;
+  overlay.dataset.world = menuWorld;
+  if (!demo || worldIdx !== menuWorld) startDemo();
+  const opts = courseOptions(menuWorld), bestKey = `${WORLDS[menuWorld].id}-${menuCourse}`;
+  const lockedLeft = WORLDS.filter((w, i) => !isOpen(i)).length;
   showOverlay(`
     <h1 class="logo">⛳ Tiny Tees</h1>
-    <div class="tag">Mini golf with boosts, portals, hills &amp; ice</div>
-    <h3>Players</h3>
-    <div class="seg">${[1,2,3,4].map(n => `<button data-act="players" data-n="${n}" class="${n === menuPlayers ? "on" : ""}">${n === 1 ? "Solo" : n + "P"}</button>`).join("")}</div>
-    <h3>Course</h3>
-    <div class="seg">${Object.entries(COURSES).map(([k, c]) => `<button data-act="course" data-k="${k}" class="${k === menuCourse ? "on" : ""}">${c.label}</button>`).join("")}</div>
-    <div class="row" style="margin-top:18px"><button class="big" data-act="play">Tee off!</button></div>
+    <div class="tag">Mini golf across ${WORLDS.length} worlds${lockedLeft ? ` · ${lockedLeft} still locked` : " · all unlocked!"}</div>
+    <h3>World</h3>
+    ${worldPicker("world", menuWorld)}
+    <h3>Players &amp; course</h3>
+    <div class="row" style="margin-top:0">
+      <div class="seg">${[1,2,3,4].map(n => `<button data-act="players" data-n="${n}" class="${n === menuPlayers ? "on" : ""}">${n === 1 ? "Solo" : n + "P"}</button>`).join("")}</div>
+      <div class="seg">${Object.entries(opts).map(([k, c]) => `<button data-act="course" data-k="${k}" class="${k === menuCourse ? "on" : ""}">${c.label}</button>`).join("")}</div>
+    </div>
+    <div class="row" style="margin-top:16px"><button class="big" data-act="play">Tee off!</button></div>
     <div class="row">
       <button class="ghost" data-act="practice">🎯 Practice</button>
       <button class="ghost" data-act="shop">🛍️ Ball shop · 💎 ${save.gems}</button>
     </div>
     ${window.innerHeight > window.innerWidth ? `<div class="hint">📱 Tip: turn your phone sideways for a bigger course.</div>` : ""}
-    <div class="hint">${bestFor(menuCourse) ? `Best solo round on ${COURSES[menuCourse].label}: <b>${bestFor(menuCourse)}</b>` : "Collect 💎 gems on the course to unlock new balls."}</div>`);
+    <div class="hint">${save.roundBest[bestKey] ? `Best solo round on ${WORLDS[menuWorld].name} (${opts[menuCourse].label}): <b>${save.roundBest[bestKey]}</b>`
+      : menuCourse !== "full" && WORLDS[menuWorld+1] && !isOpen(menuWorld+1) ? "Play the <b>full</b> course to unlock the next world."
+      : "Collect 💎 gems on the course to unlock new balls."}</div>`);
 }
 
 function showPractice(){
+  if (!isOpen(practiceWorld)) practiceWorld = 0;
+  overlay.dataset.world = practiceWorld;
+  if (worldIdx !== practiceWorld) startDemo();
+  const lv = WORLDS[practiceWorld].levels;
   showOverlay(`
     <h2>🎯 Practice</h2>
     <div class="muted">Pick any hole and play it on its own.</div>
-    <div class="grid">${LEVELS.map((L, i) => `
+    <div class="seg" style="margin-top:10px">${WORLDS.map((w, i) => `<button data-act="pworld" data-w="${i}" class="${i === practiceWorld ? "on" : ""}" ${isOpen(i) ? "" : "disabled"}>${isOpen(i) ? w.emoji : "🔒"} ${w.name}</button>`).join("")}</div>
+    <div class="grid">${lv.map((L, i) => `
       <button class="tile" data-act="practiceHole" data-i="${i}">
         <span class="tn">${i+1}</span><span>${L.name}</span>
-        <small>Par ${L.par} · Best ${save.holeBest[i] ?? "–"}</small>
+        <small>Par ${L.par} · Best ${save.holeBest[holeKey(practiceWorld, i)] ?? "–"}</small>
       </button>`).join("")}</div>
     <button class="ghost" data-act="menu">← Back</button>`);
 }
@@ -1096,7 +1416,7 @@ function showHoleCard(){
     showOverlay(`
       <h2>${LEVELS[levelIdx].name}</h2>
       <p>${s} stroke${s === 1 ? "" : "s"} on a par ${level.par} · ${scoreName(s, level.par)}</p>
-      <p class="muted">Best on this hole: ${save.holeBest[levelIdx]}</p>
+      <p class="muted">Best on this hole: ${save.holeBest[holeKey(worldIdx, levelIdx)]}</p>
       <div class="row">
         <button data-act="retry">↻ Play again</button>
         <button class="ghost" data-act="practice">Pick another</button>
@@ -1117,25 +1437,37 @@ function showHoleCard(){
     <div class="hint">Up next: ${LEVELS[round.holes[round.hi+1]].name}</div>`);
 }
 
+function checkUnlock(){
+  if (round.practice || round.course !== "full") return "";
+  save.completed[WORLDS[round.world].id] = true;
+  const next = WORLDS[round.world + 1];
+  if (!next || save.unlocked.includes(next.id)){ persist(); return ""; }
+  save.unlocked.push(next.id); persist();
+  menuWorld = round.world + 1;
+  setTimeout(() => sfx.unlock(), 700);
+  return `<div class="unlock w-${next.theme}">🔓 New world unlocked: <b>${next.emoji} ${next.name}</b><br><small>${next.blurb}</small></div>`;
+}
+
 function showFinal(){
   const ranked = round.players.map(p => ({ p, ...playerTotal(p) })).sort((a, b) => a.s - b.s);
+  const unlockHTML = checkUnlock();
   let extra = "";
   if (round.players.length === 1){
-    const r = ranked[0], key = round.course, label = `${r.s} (${fmtDiff(r.diff)})`;
+    const r = ranked[0], key = `${WORLDS[round.world].id}-${round.course}`, label = `${r.s} (${fmtDiff(r.diff)})`;
     const prev = save.roundBest[key], prevNum = prev ? parseInt(prev, 10) : Infinity;
     if (r.s < prevNum){ save.roundBest[key] = label; persist(); extra = "<p><b>🏆 New personal best!</b></p>"; }
     else extra = `<p class="muted">Best: ${prev}</p>`;
     const verdict = r.diff <= -5 ? "Legendary putting! 🏆" : r.diff < 0 ? "Under par, nicely done! 🎉" :
       r.diff === 0 ? "Right on par. Solid round! 👏" : r.diff <= 6 ? "Not bad! Go again?" : "The course won this time 😅";
     showOverlay(`<h1 class="logo" style="font-size:44px">Round complete!</h1>
-      <h2 style="margin-top:8px">${label}</h2><p>${verdict}</p>${extra}
+      <h2 style="margin-top:8px">${label}</h2><p>${verdict}</p>${extra}${unlockHTML}
       ${scorecardHTML()}
       <div class="row"><button data-act="again">Play again</button><button class="ghost" data-act="menu">Menu</button></div>`);
   } else {
     const best = ranked[0].s, winners = ranked.filter(r => r.s === best);
     const title = winners.length > 1 ? "It's a tie!" : `${winners[0].p.name} wins!`;
     showOverlay(`<h1 class="logo" style="font-size:44px">🏆 ${title}</h1>
-      <ol class="standings">${ranked.map((r, i) => `<li><span>${["🥇","🥈","🥉","4."][i]}</span><span class="dot" style="--c:${r.p.color}"></span>${r.p.name}<span class="sc">${r.s} (${fmtDiff(r.diff)})</span></li>`).join("")}</ol>
+      ${unlockHTML}<ol class="standings">${ranked.map((r, i) => `<li><span>${["🥇","🥈","🥉","4."][i]}</span><span class="dot" style="--c:${r.p.color}"></span>${r.p.name}<span class="sc">${r.s} (${fmtDiff(r.diff)})</span></li>`).join("")}</ol>
       ${scorecardHTML()}
       <div class="row"><button data-act="again">Rematch</button><button class="ghost" data-act="menu">Menu</button></div>`);
   }
@@ -1160,17 +1492,19 @@ function showPause(){
 const ACTIONS = {
   players: d => { menuPlayers = +d.n; showMenu(); },
   course:  d => { menuCourse = d.k; showMenu(); },
-  play:    () => startRound(COURSES[menuCourse].holes, menuPlayers, false, menuCourse),
+  world:   d => { menuWorld = +d.w; showMenu(); },
+  pworld:  d => { practiceWorld = +d.w; showPractice(); },
+  play:    () => startRound(menuWorld, courseOptions(menuWorld)[menuCourse].holes, menuPlayers, false, menuCourse),
   practice:() => { if (!demo) startDemo(); showPractice(); },
-  practiceHole: d => startRound([+d.i], 1, true, "practice"),
+  practiceHole: d => startRound(practiceWorld, [+d.i], 1, true, "practice"),
   shop:    () => showShop(),
   buy:     d => { const s = SKINS.find(x => x.id === d.id); if (save.gems < s.cost) return;
                   save.gems -= s.cost; save.owned.push(s.id); save.skin = s.id; persist(); sfx.buy(); updateHUD(); showShop(); },
   equip:   d => { save.skin = d.id; persist(); showShop(); },
   menu:    () => { round = null; showMenu(); },
   next:    () => nextHole(),
-  retry:   () => startRound(round.holes, 1, true, "practice"),
-  again:   () => startRound(round.holes, round.players.length, false, round.course),
+  retry:   () => startRound(round.world, round.holes, 1, true, "practice"),
+  again:   () => startRound(round.world, round.holes, round.players.length, false, round.course),
   resume:  d => {
     hideOverlay();
     state = d.prev === "done" ? "done" : d.prev;
@@ -1263,7 +1597,7 @@ requestAnimationFrame(frame);
 // Small hook for automated tests.
 window.__tt = {
   get state(){ return state; }, get ball(){ return ball; }, get strokes(){ return strokes; },
-  get round(){ return round; }, get level(){ return levelIdx; }, save,
+  get round(){ return round; }, get level(){ return levelIdx; }, get levelObj(){ return level; }, save, WORLDS,
   shoot, step, startRound, physicsFrame, set demo(v){ demo = v; },
 };
 })();
